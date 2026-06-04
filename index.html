@@ -1130,11 +1130,13 @@ async function triggerDenibCalc() {
     for (const item of (data.line_items || [])) {
       if (item.section_header) { currentSection = item.description?.toUpperCase() || ''; continue; }
       if (/miscellaneous/i.test(currentSection))          continue;
-      if (!item.paint || item.paint <= 0)                 continue;
+      if (!item.paint || item.paint < 0.5)                 continue;
       if (/bumper/i.test(item.description || ''))         continue;
       if (/^add\s+for\b/i.test(item.description || ''))  continue;
       if (/^overlap\b/i.test(item.description || ''))     continue;
       if (/clear\s*coat/i.test(item.description || ''))  continue;
+      if (/interior|jamb/i.test(item.description || '')) continue;
+      if (item.paint < 0.5)                              continue;
 
       const label   = _panelLabel(item.description, currentSection, item.operation);
       const buffHrs = Math.round(item.paint * 0.30 * 10) / 10;
