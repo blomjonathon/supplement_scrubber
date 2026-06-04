@@ -6,7 +6,6 @@
 <title>CCC One Estimate Auditor</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="estimateParser.js"></script>
 <script src="pdfFullParser.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -554,7 +553,19 @@ function noteCard(itemName, overrideText) {
   </div>`;
 }
 
-// extractText removed — replaced by extractStructured() in estimateParser.js
+// ── PDF text extraction ───────────────────────────────────────────────────────
+
+async function extractText(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  const pages = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    pages.push(content.items.map(x => x.str).join(' '));
+  }
+  return pages.join('\n');
+}
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -828,7 +839,6 @@ function render(text, lines = []) {
   // Actions
   h += `<div class="actions">
     ${total > 0 ? `<button class="btn btn-secondary" id="ppageBtn" onclick="triggerPPageDownload()">&#8681; Download P-Pages</button>` : ''}
-    <button class="btn btn-secondary" onclick="downloadEstimateJSON()">&#8681; Export JSON</button>
     <button class="btn btn-secondary" id="fullJsonBtn" onclick="triggerFullJSON()">&#8681; Parse Full JSON</button>
     <button class="btn btn-secondary" onclick="window.print()">Print</button>
     <button class="btn btn-secondary" onclick="resetApp()">New Estimate</button>
@@ -1059,17 +1069,6 @@ async function triggerFullJSON() {
   }
 }
 
-function downloadEstimateJSON() {
-  const d = window._estimateData;
-  if (!d) return;
-  const ro = (window._roNumber || 'estimate').replace(/\s+/g, '-');
-  const blob = new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = `${ro}-parsed.json`; a.click();
-  URL.revokeObjectURL(url);
-}
-
 async function processFile(file) {
   if (!file?.name?.toLowerCase().endsWith('.pdf')) {
     showStatus('Please upload a PDF file.', 'error'); return;
@@ -1078,12 +1077,11 @@ async function processFile(file) {
   document.getElementById('resultsSection').classList.add('hidden');
   showStatus('Reading PDF…');
   try {
-    const { rawText, lines, cols } = await extractStructured(file);
-    window._estimateData = { cols, lines };
+    const rawText = await extractText(file);
     window._lastFile = file;
     showStatus('Analyzing estimate…');
     await new Promise(r => setTimeout(r, 80));
-    const html = render(rawText, lines);
+    const html = render(rawText);
     document.getElementById('statusDiv').classList.add('hidden');
     const res = document.getElementById('resultsSection');
     res.innerHTML = html;
