@@ -7,6 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="pdfFullParser.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -313,7 +314,12 @@ body {
       <div class="checklist-group-title">Documents to Create</div>
       <div class="checklist-items">
         <label class="checklist-item"><input type="checkbox"><span>a93.4 &ndash; Not Included Consumables / Dry Goods Invoice</span></label>
-        <label class="checklist-item"><input type="checkbox"><span>a93.5 &ndash; De/Nib &amp; Polish P-Page</span></label>
+        <div class="checklist-item full-width" style="align-items:center;justify-content:space-between;">
+          <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;user-select:none;">
+            <input type="checkbox"><span>a93.5 &ndash; De/Nib &amp; Polish</span>
+          </label>
+          <button id="denibCalcBtn" onclick="triggerDenibCalc()" class="checklist-link-btn" style="cursor:pointer;font-family:inherit;">Calculate De/Nib &amp; Polish</button>
+        </div>
         <label class="checklist-item"><input type="checkbox"><span>Clear Bra Invoice</span></label>
         <label class="checklist-item"><input type="checkbox"><span>Scan Invoice (REV ADAS) &ndash; Add Test Drive</span></label>
         <label class="checklist-item"><input type="checkbox"><span>a92.6 &ndash; Glass Sublet Invoice</span></label>
@@ -1067,6 +1073,239 @@ async function triggerFullJSON() {
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '↡ Parse Full JSON'; }
   }
+}
+
+// ── De/Nib & Polish calculator ────────────────────────────────────────────────
+
+// Builds a directional+section label: "RT Front Door", "LT Fender (Blend)", "Hood", etc.
+function _panelLabel(desc, section, operation) {
+  const isBlend = /^blend$/i.test(operation || '');
+  const suffix  = isBlend ? ' (Blend)' : '';
+  desc = desc || '';
+
+  // Extract leading direction (RT / LT)
+  const dirMatch = desc.match(/^(RT|LT)\b\s*/i);
+  const dir  = dirMatch ? dirMatch[1].toUpperCase() : '';
+  const body = dirMatch ? desc.slice(dirMatch[0].length).trim() : desc;
+
+  // Clean section: "FRONT BUMPER & GRILLE" → "Front Bumper", "HOOD" → "Hood"
+  const secClean = (section || '').replace(/\s*&\s*.+/, '').trim();
+  const secTitle = secClean.split(' ')
+    .map(w => w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : '').join(' ');
+
+  // If description already contains the section's panel keyword, use it as-is
+  const bLow = body.toLowerCase(), sLow = secClean.toLowerCase();
+  if (!secClean || bLow.includes(sLow) || sLow.includes(bLow)) {
+    return desc + suffix;
+  }
+
+  // Generic remainder words that add no info beyond the section name
+  const generic = /^(outer\s+panel|inner\s+panel|panel|door\s+asm|door\s+shell|door\s+skin|assembly)$/i.test(body);
+
+  if (dir) {
+    return (generic || !body)
+      ? `${dir} ${secTitle}${suffix}`
+      : `${dir} ${secTitle} ${body}${suffix}`;
+  }
+  return `${secTitle} — ${body || desc}${suffix}`;
+}
+
+async function triggerDenibCalc() {
+  if (!window._lastFile) {
+    alert('Please upload an estimate PDF first.');
+    return;
+  }
+  const btn = document.getElementById('denibCalcBtn');
+  const orig = btn?.textContent;
+  if (btn) { btn.disabled = true; btn.textContent = 'Calculating…'; }
+  try {
+    const data = await parseEstimatePDF(window._lastFile);
+    const ro      = data.document?.ro_number || '';
+    const vehicle = data.document?.vehicle?.description || '';
+
+    // Walk line items tracking the current section.
+    // Skip: Miscellaneous Operations, bumpers, "Add for" additions, overlaps.
+    let currentSection = '';
+    const panels = [];
+    for (const item of (data.line_items || [])) {
+      if (item.section_header) { currentSection = item.description?.toUpperCase() || ''; continue; }
+      if (/miscellaneous/i.test(currentSection))          continue;
+      if (!item.paint || item.paint <= 0)                 continue;
+      if (/bumper/i.test(item.description || ''))         continue;
+      if (/^add\s+for\b/i.test(item.description || ''))  continue;
+      if (/^overlap\b/i.test(item.description || ''))     continue;
+
+      const label   = _panelLabel(item.description, currentSection, item.operation);
+      const buffHrs = Math.round(item.paint * 0.30 * 10) / 10;
+      panels.push({ label, paintHrs: item.paint, buffHrs });
+    }
+
+    if (!panels.length) {
+      alert('No paintable panels found (excluding bumpers, miscellaneous, and additions).');
+      return;
+    }
+
+    const totalPaint = Math.round(panels.reduce((s, p) => s + p.paintHrs, 0) * 10) / 10;
+    const totalBuff  = Math.round(panels.reduce((s, p) => s + p.buffHrs,  0) * 10) / 10;
+
+    _buildDenibPDF(panels, totalPaint, totalBuff, ro, vehicle);
+  } catch(e) {
+    alert('De/Nib calculation error: ' + e.message);
+    console.error(e);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = orig; }
+  }
+}
+
+function _buildDenibPDF(panels, totalPaint, totalBuff, ro, vehicle) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ format: 'letter', unit: 'mm' });
+
+  const PW = 215.9, LM = 19, RM = 196.9, CW = RM - LM, CX = PW / 2;
+  let y = 18;
+
+  // ── Title ──────────────────────────────────────────────────────────────────
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.text('WET/DRY SAND, RUB-OUT & BUFF', LM, y);
+  y += 13;
+
+  // ── SPECIAL NOTATION ───────────────────────────────────────────────────────
+  doc.setFontSize(10);
+  doc.text('SPECIAL NOTATION:', CX, y, { align: 'center' });
+  y += 7;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  const body1 = "Refinished panels may or may not require a varying amount of wet sanding, compound rub-out, or buffing operations in order to match original finish texture. The clear coat contains ultraviolet screeners and reducing the clear coat thickness (mils) may result in early paint failure. Follow manufacturer’s recommendations when performing this type of repairs. Calculations should be based upon the outer surface only and should not include additions for clear coat, underside, inside or edges. Base refinish time does not include deduction for refinish overlap. In the event that this type of operation will be performed,";
+  const b1 = doc.splitTextToSize(body1, CW - 16);
+  doc.text(b1, CX, y, { align: 'center' });
+  y += b1.length * 4.5 + 1;
+  doc.setFont('helvetica', 'bold');
+  doc.text('MOTOR suggests the following formula be considered:', CX, y, { align: 'center' });
+  y += 7;
+
+  // ── Formula bullet ─────────────────────────────────────────────────────────
+  doc.setFont('helvetica', 'normal');
+  doc.text('•', LM + 8, y);
+  doc.text('Each panel requiring wet sand, rub-out and/or buff (refinish or blend):', LM + 13, y);
+  y += 4.5;
+  doc.text('Add 30% of full base refinish time', LM + 13, y);
+  y += 9;
+
+  // ── INCLUDED ───────────────────────────────────────────────────────────────
+  doc.setFont('helvetica', 'bolditalic');
+  doc.setFontSize(10);
+  doc.text('INCLUDED:', LM, y);
+  y += 5.5;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  for (const t of ['Compound, buff and/or polish as required', 'Panel outer surface only', 'Wet sand full panel as required']) {
+    doc.text('•', LM + 8, y);
+    doc.text(t, LM + 13, y);
+    y += 5;
+  }
+  y += 3;
+
+  // ── DOES NOT INCLUDE ───────────────────────────────────────────────────────
+  doc.setFont('helvetica', 'bolditalic');
+  doc.setFontSize(10);
+  doc.text('DOES NOT INCLUDE:', LM, y);
+  y += 5.5;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  for (const t of [
+    'Acid rain damage',
+    'Overspray removal',
+    'Removal of residual material from recessed edges and jambs if required',
+    'Wash, clean, wax, or detail entire vehicle prior to delivery if required',
+  ]) {
+    doc.text('•', LM + 8, y);
+    const ls = doc.splitTextToSize(t, CW - 15);
+    doc.text(ls, LM + 13, y);
+    y += ls.length * 4.5 + 0.5;
+  }
+  y += 9;
+
+  // ── Separator + calc header ────────────────────────────────────────────────
+  doc.setDrawColor(0); doc.setLineWidth(0.4);
+  doc.line(LM, y, RM, y);
+  y += 7;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text('DE/NIB & POLISH CALCULATION  —  RO# ' + ro, LM, y);
+  y += 5.5;
+
+  if (vehicle) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    const vl = doc.splitTextToSize(vehicle, CW);
+    doc.text(vl, LM, y);
+    y += vl.length * 3.8 + 3;
+  }
+  y += 2;
+
+  // ── Table ──────────────────────────────────────────────────────────────────
+  const C1 = LM, C2 = LM + 125, C3 = LM + 155, ROW = 6;
+
+  // Header
+  doc.setFillColor(26, 26, 46);
+  doc.rect(LM, y, CW, ROW, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.text('Panel / Operation', C1 + 2, y + 4);
+  doc.text('Paint Hrs', C2 + 2, y + 4);
+  doc.text('Buff Hrs (30%)', C3 + 2, y + 4);
+  y += ROW;
+  doc.setTextColor(0, 0, 0);
+
+  // Data rows
+  doc.setFont('helvetica', 'normal');
+  panels.forEach((p, i) => {
+    if (i % 2 === 1) { doc.setFillColor(245, 245, 245); doc.rect(LM, y, CW, ROW, 'F'); }
+    doc.text(p.label,                C1 + 2, y + 4);
+    doc.text(p.paintHrs.toFixed(1), C2 + 2, y + 4);
+    doc.text(p.buffHrs.toFixed(1),  C3 + 2, y + 4);
+    doc.setDrawColor(210, 210, 210); doc.setLineWidth(0.2);
+    doc.line(LM, y + ROW, RM, y + ROW);
+    y += ROW;
+  });
+
+  // Total
+  doc.setDrawColor(0); doc.setLineWidth(0.8);
+  doc.line(LM, y, RM, y);
+  y += 1;
+  doc.setFont('helvetica', 'bold');
+  doc.text('TOTAL',                  C1 + 2, y + 4);
+  doc.text(totalPaint.toFixed(1),   C2 + 2, y + 4);
+  doc.text(totalBuff.toFixed(1),    C3 + 2, y + 4);
+  y += ROW + 6;
+
+  // Footnote
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 100, 100);
+  doc.text('* Bumper panels, miscellaneous operations, overlap adjustments, and additions excluded per CCC G52 formula.', LM, y);
+  doc.setTextColor(0, 0, 0);
+
+  // ── Footer ─────────────────────────────────────────────────────────────────
+  const FY = 269;
+  doc.setDrawColor(0); doc.setLineWidth(0.8);
+  doc.line(LM, FY - 2, RM, FY - 2);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('G52', LM, FY + 4);
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(7.5);
+  doc.text('Footnotes found in a chapter contain vehicle-specific information. The content of footnotes is in addition to,', CX, FY + 1, { align: 'center' });
+  doc.text('and takes precedence over, information in the Guide to Estimating pages for the operation indicated.', CX, FY + 5, { align: 'center' });
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.text('REV. 8-17', RM, FY + 5, { align: 'right' });
+
+  doc.save(`RO_${ro || 'estimate'}_DenibPolish.pdf`);
 }
 
 async function processFile(file) {
