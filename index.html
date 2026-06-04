@@ -8,6 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="pdfFullParser.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -198,6 +199,36 @@ body {
 }
 .checklist-link-btn:hover { background: #dbeafe; }
 
+/* Invoice Review */
+.inv-results { margin-top: 32px; border-top: 2.5px solid #e5e7eb; padding-top: 24px; }
+.inv-results-title { font-size: 14pt; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+.inv-results-sub { font-size: 9pt; color: #6b7280; margin-bottom: 18px; font-style: italic; }
+.inv-counts { display: flex; gap: 28px; margin-bottom: 24px; }
+.inv-count { text-align: center; }
+.inv-count .inv-num { font-size: 20pt; font-weight: 700; display: block; line-height: 1; }
+.inv-count .inv-lbl { font-size: 8pt; color: #9ca3af; margin-top: 2px; white-space: nowrap; }
+.inv-count.green .inv-num { color: #16a34a; }
+.inv-count.amber .inv-num { color: #d97706; }
+.inv-count.red   .inv-num { color: #dc2626; }
+.inv-section { border-top: 2.5px solid #e5e7eb; padding-top: 20px; margin-bottom: 28px; }
+.inv-section.red-border   { border-color: #fca5a5; }
+.inv-section.amber-border { border-color: #fde68a; }
+.inv-section.green-border { border-color: #86efac; }
+.inv-section-title { font-size: 14pt; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+.inv-section-sub   { font-size: 9pt; color: #6b7280; margin-bottom: 12px; font-style: italic; }
+.inv-table { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+.inv-table th { font-size: 8pt; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; padding: 0 8px 6px 0; text-align: left; border-bottom: 1px solid #e5e7eb; }
+.inv-table th.r { text-align: right; padding-right: 0; }
+.inv-table td { padding: 7px 8px 7px 0; border-bottom: 0.5px solid #f3f4f6; vertical-align: middle; }
+.inv-table td.r { text-align: right; font-weight: 700; padding-right: 0; }
+.inv-table td.muted { color: #6b7280; font-size: 8.5pt; }
+.inv-table td.src  { color: #6b7280; font-size: 8pt; font-style: italic; }
+.inv-table tr:last-child td { border-bottom: none; }
+details.inv-collapsible > summary { cursor: pointer; list-style: none; }
+details.inv-collapsible > summary::-webkit-details-marker { display: none; }
+details.inv-collapsible > summary .inv-section-title::before { content: '▶  '; font-size: 9pt; color: #6b7280; }
+details.inv-collapsible[open] > summary .inv-section-title::before { content: '▼  '; font-size: 9pt; color: #6b7280; }
+
 @media print {
   body { background: white; padding: 0; }
   .page { box-shadow: none; width: 100%; padding: 0.5in; }
@@ -219,8 +250,6 @@ body {
     <div style="font-size:9pt;color:#9ca3af;text-align:right;">New Central Auto</div>
   </div>
 
-  <!-- Hidden input for P-page PDFs -->
-  <input type="file" id="ppageInput" multiple accept=".pdf" style="display:none">
 
   <div id="uploadSection">
     <div class="upload-area" id="uploadArea">
@@ -290,7 +319,13 @@ body {
     <div class="checklist-group">
       <div class="checklist-group-title">Review</div>
       <div class="checklist-items">
-        <label class="checklist-item"><input type="checkbox"><span>Review Part Invoices (Confirm all Parts are Accounted for)</span></label>
+        <div class="checklist-item full-width" style="align-items:center;grid-column:1/-1;">
+          <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;user-select:none;">
+            <input type="checkbox"><span>Review Part Invoices (Confirm all Parts are Accounted for)</span>
+          </label>
+          <button class="checklist-link-btn" style="cursor:pointer;display:none;" onclick="triggerInvoiceReview(); event.stopPropagation()">Upload Invoices</button>
+        </div>
+        <input type="file" id="invoiceInput" multiple accept=".pdf" style="display:none">
         <label class="checklist-item"><input type="checkbox"><span>Review Technician Repair Photos</span></label>
         <label class="checklist-item"><input type="checkbox"><span>Review Refinish Exclusions</span></label>
         <label class="checklist-item"><input type="checkbox"><span>Review Body Exclusions</span></label>
@@ -314,7 +349,7 @@ body {
       <div class="checklist-group-title">Documents to Create</div>
       <div class="checklist-items">
         <label class="checklist-item"><input type="checkbox"><span>a93.4 &ndash; Not Included Consumables / Dry Goods Invoice</span></label>
-        <div class="checklist-item full-width" style="align-items:center;justify-content:space-between;">
+        <div class="checklist-item full-width" style="align-items:center">
           <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;user-select:none;">
             <input type="checkbox"><span>a93.5 &ndash; De/Nib &amp; Polish</span>
           </label>
@@ -529,16 +564,22 @@ const CHECK_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" s
 
 // Copy text for a single note button
 let _noteTexts = {};
-function copyNote(id) {
+let _noteItemNames = {};
+let _ppageFolder = null;
+let _roOutputFolder = null;
+
+async function copyNote(id) {
   const text = _noteTexts[id];
   if (!text) return;
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = document.getElementById('cpbtn-' + id);
-    if (!btn) return;
-    btn.innerHTML = CHECK_ICON + ' Copied!';
+  const btn = document.getElementById('cpbtn-' + id);
+  await navigator.clipboard.writeText(text);
+  const itemName = _noteItemNames[id];
+  const saved = (itemName && _roOutputFolder) ? await savePageForItem(itemName) : false;
+  if (btn) {
+    btn.innerHTML = CHECK_ICON + (saved ? ' Copied + Saved!' : ' Copied!');
     btn.classList.add('copied');
     setTimeout(() => { btn.innerHTML = COPY_ICON + ' Copy'; btn.classList.remove('copied'); }, 2000);
-  });
+  }
 }
 
 // Render a single note card
@@ -549,6 +590,7 @@ function noteCard(itemName, overrideText) {
   const id = _noteCounter++;
   const displayText = overrideText || note.text;
   _noteTexts[id] = displayText;
+  _noteItemNames[id] = itemName;
   return `<div class="note">
     <div class="note-body">
       <div class="note-code ${note.sev}">${esc(note.code)}</div>
@@ -740,18 +782,104 @@ function alwaysCheckMissing(text) {
   return checks.filter(({ kws }) => !has(text, kws)).map(({ item }) => item);
 }
 
+// Returns the set of P_PAGE_RULES item names that ARE present on the estimate.
+// Conditional items are only included when their triggering condition was detected.
+// Always-check items are included whenever their keyword is found.
+function getPresentPPageItems(text, cond) {
+  const present = new Set();
+  const p = kws => has(text, kws);
+
+  if (cond.doorRepl) {
+    if (p(['mask jamb'])) present.add('Mask Jambs');
+    if (p(['air bag sensor', 'airbag sensor', 'r&i side impact', 'side impact sensor'])) present.add('R&I Air Bag Sensors in Door');
+  }
+  if (cond.repairOnPanel) {
+    if (p(['feather', 'f,p&b', 'f/p/b', 'prime & block', 'prime and block'])) present.add('Feather, Prime & Block');
+    if (p(['mask for primer', 'mask primer', 'mask/prime', 'mask & prime'])) present.add('Mask for Primer');
+  }
+  if (cond.paintTime) {
+    if (p(['color tint', 'color match', 'tint/color']))                                  present.add('Color Tint / Color Match');
+    if (p(['let down panel', 'letdown panel']))                                           present.add('Let Down Panel');
+    if (p(['de-nib', 'denib', 'de nib', 'nib & buff', 'nib and buff', 'nib/buff']))     present.add('De-Nib and Polish');
+  }
+  if (cond.weldedPanel) {
+    if (p(['repair weld zone', 'weld zone', 'weld repair']))                             present.add('Repair Weld Zones After Panel Replacement');
+    if (p(['set back wiring', 'setback wiring', 'set-back wiring']))                     present.add('Set Back Wiring');
+    if (p(['welder set up', 'welder setup', 'welder set-up']))                           present.add('Welder Set Up');
+    if (p(['seam sealer', 'factory seam', 'remove seam']))                               present.add('Remove Factory Seam Sealer from Adjacent Panels');
+  }
+  if (cond.emblem) {
+    if (p(['remove adhesive', 'adhesive removal', 'adhesives']))                         present.add('Remove Adhesives');
+  }
+  if (cond.glass) {
+    if (p(['urethane removal', 'old urethane']))                                          present.add('Old Urethane Removal');
+    if (p(['glass kit', 'windshield kit']))                                               present.add('Glass Kit');
+  }
+  if (cond.sublet) {
+    if (p(['sublet stall', 'stall time']))                                                present.add('Trip Charge / Sublet Stall Time');
+  }
+  if (cond.frameTime) {
+    if (p(['clamp damage', 'pinchweld repair', 'pinch weld repair', 'pinchweld']))       present.add('Clamp Damage / Pinchweld Repair');
+    if (p(['tram radiator', 'tram rad', 'tram r/s', 'measure radiator']))                present.add('Tram Radiator Support');
+  }
+  if (cond.frontDamage) {
+    if (p(['tram radiator', 'tram rad', 'tram r/s', 'measure radiator']))                present.add('Tram Radiator Support');
+  }
+  if (cond.lkq) {
+    if (p(['clean', 'inspect', 'de-trim', 'lkq prep']))                                  present.add('Clean / Inspect / De-Trim Recycled Parts');
+  }
+
+  // Always-check items that have P-page rules — present if keyword found
+  const alwChecks = [
+    { item: 'Disconnect/Reconnect Battery',              kws: ['disconnect/reconnect battery', 'disconnect battery', 'reconnect battery', 'battery cable'] },
+    { item: 'OEM Procedure Research Admin Time',         kws: ['oem procedure', 'procedure research', 'oem research', 'alldata'] },
+    { item: 'Set-Up & Measure',                          kws: ['set-up & measure', 'setup & measure', 'set up & measure', 'setup and measure'] },
+    { item: 'Trip Charge / Sublet Stall Time',           kws: ['trip charge', 'sublet stall', 'stall time'] },
+    { item: 'Rope Glass / Additional Not Included Masking', kws: ['rope glass', 'rope molding', 'rope mask'] },
+    { item: 'Second Color Set-Up',                       kws: ['second color', '2nd color'] },
+    { item: 'Clean for Delivery',                        kws: ['clean for delivery', 'cleaning for delivery'] },
+    { item: 'Flash Time',                                kws: ['flash time'] },
+  ];
+  for (const { item, kws } of alwChecks) {
+    if (p(kws)) present.add(item);
+  }
+
+  return present;
+}
+
+// Panels we buff/denib: fenders, doors, hoods, quarter panels, aperture panels,
+// cabs, tailgates, and outer panels on box sides. Nothing structural.
+function _isBuffablePanel(text) {
+  if (!text) return false;
+  const t = text.toLowerCase();
+  if (/radiator[\s\-]*support|rad[\s\-]*support/.test(t)) return false;
+  return (
+    /\bfender\b/.test(t)                          ||
+    (/\bdoor\b/.test(t) && !/\bglass\b/.test(t))  ||
+    /\bhood\b/.test(t)                             ||
+    /quarter[\s\-]*panel/.test(t)                  ||
+    /\bapertur/.test(t)                            ||
+    /\bcab\b/.test(t)                              ||
+    /tail[\s\-]*gate/.test(t)                      ||
+    /box[\s\-]*side/.test(t)                       ||
+    /outer[\s\-]*panel/.test(t)
+  );
+}
+
 // ── Blend hours ───────────────────────────────────────────────────────────────
 
 function blendHourIssues(text) {
   const issues = [];
   for (const line of text.split(/\n/)) {
     if (!/\bblnd\b/i.test(line)) continue;
+    const panel = blendName(line);
+    if (!_isBuffablePanel(panel)) continue;
     const nums = (line.match(/\d+(?:\.\d+)?/g)||[]).map(Number).filter(n => n > 0 && n < 25);
     if (!nums.length) {
-      issues.push({ panel: blendName(line), note: 'Paint hours could not be parsed — verify manually (min 1.5 hrs)' });
+      issues.push({ panel, note: 'Paint hours could not be parsed — verify manually (min 1.5 hrs)' });
     } else {
       const hrs = nums[nums.length - 1];
-      if (hrs < 1.5) issues.push({ panel: blendName(line), note: `${hrs} hrs — minimum 1.5 hrs required` });
+      if (hrs < 1.5) issues.push({ panel, note: `${hrs} hrs — minimum 1.5 hrs required` });
     }
   }
   return issues;
@@ -767,6 +895,7 @@ function blendName(line) {
 function render(text, lines = []) {
   _noteCounter = 0;
   _noteTexts = {};
+  _noteItemNames = {};
 
   const info     = vehicleInfo(text);
   window._roNumber = info.ro || 'RO';
@@ -789,6 +918,7 @@ function render(text, lines = []) {
 
   // Copy-all data
   window._copyAll = { condMiss, alwMiss, blMiss, groups };
+  window._ppageOnEstimate = getPresentPPageItems(text, cond);
 
   let h = '';
 
@@ -844,7 +974,8 @@ function render(text, lines = []) {
 
   // Actions
   h += `<div class="actions">
-    ${total > 0 ? `<button class="btn btn-secondary" id="ppageBtn" onclick="triggerPPageDownload()">&#8681; Download P-Pages</button>` : ''}
+    <button class="btn btn-secondary" onclick="setPPageFolder()">&#128193; Set P-Pages Folder</button>
+    <span id="ppageFolderLabel" style="font-size:9pt;color:#6b7280;align-self:center;">No folder set</span>
     <button class="btn btn-secondary" id="fullJsonBtn" onclick="triggerFullJSON()">&#8681; Parse Full JSON</button>
     <button class="btn btn-secondary" onclick="window.print()">Print</button>
     <button class="btn btn-secondary" onclick="resetApp()">New Estimate</button>
@@ -905,6 +1036,7 @@ function render(text, lines = []) {
     h += `</div>`;
   }
 
+  h += `<div id="invoiceResults"></div>`;
   return h;
 }
 
@@ -978,67 +1110,449 @@ function getAllMissingItemNames() {
   return names;
 }
 
-// ── P-Page download flow ──────────────────────────────────────────────────────
+// ── P-Page folder helpers ─────────────────────────────────────────────────────
 
-function triggerPPageDownload() {
-  const input = document.getElementById('ppageInput');
-  input.onchange = handlePPageFiles;
-  input.click();
-}
-
-async function handlePPageFiles(e) {
-  const files = Array.from(e.target.files);
-  if (!files.length) return;
-
-  const btn = document.getElementById('ppageBtn');
-  const statusEl = document.getElementById('ppageStatus');
-  statusEl.style.display = 'block';
-  statusEl.textContent = 'Matching P-pages…';
-  if (btn) { btn.disabled = true; btn.textContent = 'Working…'; }
-
-  const missingItems = getAllMissingItemNames();
-  const zip = new JSZip();
-  const matched = [];
-  const unmatched = [];
-
-  for (const file of files) {
-    const fn = file.name;
-    const rule = P_PAGE_RULES.find(r => missingItems.has(r.item) && r.test(fn));
-    if (rule) {
-      const buf = await file.arrayBuffer();
-      zip.file(fn, buf);
-      matched.push(`${rule.item} → ${fn}`);
-    } else {
-      unmatched.push(fn);
-    }
-  }
-
-  if (!matched.length) {
-    statusEl.style.color = '#dc2626';
-    statusEl.textContent = 'No P-page files matched the flagged missing items. Check that you selected the correct PDFs.';
-    if (btn) { btn.disabled = false; btn.textContent = '↡ Download P-Pages'; }
-    document.getElementById('ppageInput').value = '';
+async function setPPageFolder() {
+  if (!window.showDirectoryPicker) {
+    alert('Your browser does not support folder access. Please use Chrome or Edge and try again.');
     return;
   }
 
-  const ro = (window._roNumber || 'RO').replace(/\s+/g, '-');
-  const zipName = `${ro}-P-Pages.zip`;
+  const folderBtn = document.querySelector('[onclick="setPPageFolder()"]');
+  const statusEl  = document.getElementById('ppageStatus');
 
-  statusEl.style.color = '#374151';
-  statusEl.textContent = `Packaging ${matched.length} P-page${matched.length > 1 ? 's' : ''}…`;
+  let sourceDir;
+  try {
+    sourceDir = await window.showDirectoryPicker({ mode: 'readwrite' });
+  } catch (e) {
+    if (e.name !== 'AbortError') alert('Could not open folder: ' + e.message);
+    return;
+  }
 
-  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = zipName;
-  a.click();
-  URL.revokeObjectURL(url);
+  _ppageFolder    = sourceDir;
+  _roOutputFolder = null;
+  updatePPageFolderLabel();
 
-  statusEl.style.color = '#16a34a';
-  statusEl.textContent = `Downloaded ${zipName} with ${matched.length} P-page${matched.length > 1 ? 's' : ''}: ${matched.map(m => m.split(' → ')[1]).join(', ')}`;
-  if (btn) { btn.disabled = false; btn.textContent = '↡ Download P-Pages'; }
-  document.getElementById('ppageInput').value = '';
+  if (statusEl) { statusEl.style.display = 'block'; statusEl.style.color = '#374151'; statusEl.textContent = 'Creating RO folder…'; }
+  if (folderBtn) folderBtn.disabled = true;
+
+  const ro = (window._roNumber || 'RO').replace(/[\\/:*?"<>|]/g, '-').trim();
+
+  try {
+    _roOutputFolder = await _ppageFolder.getDirectoryHandle(ro, { create: true });
+  } catch (e) {
+    if (statusEl) { statusEl.style.color = '#dc2626'; statusEl.textContent = `Could not create folder "${ro}": ${e.message}`; }
+    if (folderBtn) folderBtn.disabled = false;
+    return;
+  }
+
+  let sourceFiles;
+  try {
+    sourceFiles = await getPDFsFromFolder(_ppageFolder);
+  } catch (e) {
+    if (statusEl) { statusEl.style.color = '#dc2626'; statusEl.textContent = `Error reading source folder: ${e.message}`; }
+    if (folderBtn) folderBtn.disabled = false;
+    return;
+  }
+
+  const onEstimate = window._ppageOnEstimate || new Set();
+  const copied = [];
+
+  for (const file of sourceFiles) {
+    const rule = P_PAGE_RULES.find(r => onEstimate.has(r.item) && r.test(file.name));
+    if (rule) {
+      try {
+        const fh = await _roOutputFolder.getFileHandle(file.name, { create: true });
+        const writable = await fh.createWritable();
+        await writable.write(await file.arrayBuffer());
+        await writable.close();
+        copied.push(file.name);
+      } catch (e) { /* skip */ }
+    }
+  }
+
+  if (folderBtn) folderBtn.disabled = false;
+
+  if (statusEl) {
+    if (copied.length) {
+      statusEl.style.color = '#16a34a';
+      statusEl.textContent = `Folder "${ro}" ready with ${copied.length} P-page${copied.length !== 1 ? 's' : ''}: ${copied.join(', ')}. Use Copy on any note to add more.`;
+    } else {
+      statusEl.style.color = '#d97706';
+      statusEl.textContent = `Folder "${ro}" created — no matching P-pages found in source folder yet. Use Copy buttons to add them.`;
+    }
+  }
+}
+
+function updatePPageFolderLabel() {
+  const el = document.getElementById('ppageFolderLabel');
+  if (!el) return;
+  if (_ppageFolder) {
+    el.textContent = '📁 ' + _ppageFolder.name;
+    el.style.color = '#16a34a';
+  } else {
+    el.textContent = 'No folder set';
+    el.style.color = '#6b7280';
+  }
+}
+
+async function getPDFsFromFolder(dirHandle) {
+  const files = [];
+  for await (const [name, handle] of dirHandle.entries()) {
+    if (handle.kind === 'file' && name.toLowerCase().endsWith('.pdf')) {
+      files.push(await handle.getFile());
+    }
+  }
+  return files;
+}
+
+// Write a single file handle's contents into _roOutputFolder. Returns true on success.
+async function savePageForItem(itemName) {
+  if (!_ppageFolder || !_roOutputFolder) return false;
+  const rule = P_PAGE_RULES.find(r => r.item === itemName);
+  if (!rule) return false;
+  let files;
+  try { files = await getPDFsFromFolder(_ppageFolder); } catch (e) { return false; }
+  const matching = files.filter(f => rule.test(f.name));
+  if (!matching.length) return false;
+  for (const file of matching) {
+    try {
+      const fh = await _roOutputFolder.getFileHandle(file.name, { create: true });
+      const writable = await fh.createWritable();
+      await writable.write(await file.arrayBuffer());
+      await writable.close();
+    } catch (e) { return false; }
+  }
+  return true;
+}
+
+
+// ── Invoice Review ────────────────────────────────────────────────────────────
+
+function triggerInvoiceReview() {
+  if (!window._lastFile) {
+    alert('Upload an estimate PDF first, then click Upload Invoices.');
+    return;
+  }
+  const input = document.getElementById('invoiceInput');
+  input.onchange = handleInvoiceFiles;
+  input.click();
+}
+
+async function handleInvoiceFiles(e) {
+  const files = Array.from(e.target.files);
+  e.target.value = '';
+  if (!files.length) return;
+
+  const resultsDiv = document.getElementById('invoiceResults');
+  if (!resultsDiv) { alert('Load an estimate first.'); return; }
+
+  const setStatus = (msg) => {
+    resultsDiv.innerHTML = `<div class="inv-results" style="padding:8px 0"><span class="spinner"></span><span style="color:#6b7280;font-size:9pt;">${msg}</span></div>`;
+  };
+
+  setStatus('Parsing estimate…');
+
+  let estimateData;
+  try {
+    estimateData = await parseEstimatePDF(window._lastFile);
+  } catch (err) {
+    resultsDiv.innerHTML = `<div class="inv-results"><div style="color:#dc2626;font-size:9pt;">Could not parse estimate: ${esc(err.message)}</div></div>`;
+    return;
+  }
+
+  const allItems = estimateData.line_items || [];
+  const estimateParts = allItems
+    .filter(it => !it.section_header && it.extended_price > 0)
+    .map(it => ({ line: it.line, description: it.description || '', partType: it.part_type || '', price: it.extended_price }));
+
+  if (!estimateParts.length) {
+    const totalLines = allItems.filter(it => !it.section_header).length;
+    resultsDiv.innerHTML = `<div class="inv-results"><div style="color:#d97706;font-size:9pt;">
+      No parts with prices found in this estimate (${totalLines} line items parsed, none had extended prices).<br>
+      Try ↡ Parse Full JSON to inspect the raw data.
+    </div></div>`;
+    return;
+  }
+
+  // Detect whether invoices are scanned (need OCR) or text-based
+  setStatus('Checking invoice format…');
+  const needsOCR = await _invoicesAreScanned(files[0]);
+
+  let ocrWorker = null;
+  if (needsOCR) {
+    setStatus('Loading OCR engine (first run downloads ~10 MB, subsequent runs are instant)…');
+    try {
+      ocrWorker = await Tesseract.createWorker('eng');
+    } catch (err) {
+      resultsDiv.innerHTML = `<div class="inv-results"><div style="color:#dc2626;font-size:9pt;">OCR engine failed to load: ${esc(err.message)}</div></div>`;
+      return;
+    }
+  }
+
+  const invoiceLineData = [];
+  for (let fi = 0; fi < files.length; fi++) {
+    const file = files[fi];
+    try {
+      setStatus(`Reading invoice ${fi + 1} of ${files.length}: ${file.name}…`);
+      const lines = await extractInvoiceRows(file, ocrWorker, (msg) => setStatus(msg));
+      invoiceLineData.push({ lines, filename: file.name });
+    } catch (_) { /* skip unreadable file */ }
+  }
+
+  if (ocrWorker) await ocrWorker.terminate();
+
+  if (!invoiceLineData.length) {
+    resultsDiv.innerHTML = `<div class="inv-results"><div style="color:#dc2626;font-size:9pt;">Could not read any invoice files.</div></div>`;
+    return;
+  }
+
+  setStatus('Matching prices…');
+  const pool    = buildInvoicePricePool(invoiceLineData);
+  const results = matchInvoiceParts(estimateParts, pool);
+  resultsDiv.innerHTML = renderInvoiceResults(results, files.length, estimateParts, pool);
+}
+
+// Returns true if the PDF appears to be a scanned image (no usable text layer).
+async function _invoicesAreScanned(file) {
+  try {
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    const page = await pdf.getPage(1);
+    const content = await page.getTextContent();
+    const text = content.items.map(i => i.str).join('').trim();
+    return text.length < 50;
+  } catch (_) { return true; }
+}
+
+// Extract rows from one invoice PDF.
+// Uses Y-coordinate grouping for text-based PDFs; falls back to Tesseract OCR for scans.
+async function extractInvoiceRows(file, ocrWorker, onProgress) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  const rows = [];
+
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+
+    if (ocrWorker) {
+      // ── OCR path ────────────────────────────────────────────────────────────
+      if (onProgress) onProgress(`OCR: ${file.name} — page ${p} of ${pdf.numPages}…`);
+      const viewport = page.getViewport({ scale: 2.5 }); // 2.5× for accuracy
+      const canvas = document.createElement('canvas');
+      canvas.width  = viewport.width;
+      canvas.height = viewport.height;
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+      const { data: { text } } = await ocrWorker.recognize(canvas);
+      rows.push(...text.split(/\n/).map(l => l.trim()).filter(l => l.length > 0));
+    } else {
+      // ── Text-layer path ─────────────────────────────────────────────────────
+      const content = await page.getTextContent();
+      const byY = new Map();
+      for (const item of content.items) {
+        const s = item.str.trim();
+        if (!s) continue;
+        const y = Math.round(item.transform[5] / 3) * 3;
+        if (!byY.has(y)) byY.set(y, []);
+        byY.get(y).push({ x: item.transform[4], str: s });
+      }
+      for (const y of [...byY.keys()].sort((a, b) => b - a)) {
+        rows.push(byY.get(y).sort((a, b) => a.x - b.x).map(i => i.str).join(' '));
+      }
+    }
+  }
+
+  return rows;
+}
+
+// Scan every line of every invoice for anything that looks like a price (X.XX).
+// Deduplicates within each line so LIST and AMOUNT don't both appear when equal.
+// The matching is purely numeric — if a price is on the estimate and in the invoices, it matches.
+function buildInvoicePricePool(invoiceLineData) {
+  const pool = [];
+  const PRICE_RE = /(?<!\d)(\d{1,3}(?:,\d{3})*\.\d{2})(?!\d)/g;
+
+  for (const { lines, filename } of invoiceLineData) {
+    for (const line of lines) {
+      const seenOnLine = new Set();
+      let m;
+      PRICE_RE.lastIndex = 0;
+      while ((m = PRICE_RE.exec(line)) !== null) {
+        const val = parseFloat(m[1].replace(/,/g, ''));
+        if (val >= 1.00 && !seenOnLine.has(val)) {
+          seenOnLine.add(val);
+          pool.push({ amount: val, context: line.slice(0, 120), source: filename });
+        }
+      }
+    }
+  }
+  return pool;
+}
+
+// Match estimate parts to invoice pool entries.
+// Uses greedy exact-first matching so shared prices are allocated correctly.
+function matchInvoiceParts(estimateParts, pool) {
+  const used = new Set();
+
+  function findMatch(price) {
+    // Exact (within 1 cent)
+    let i = pool.findIndex((e, idx) => !used.has(idx) && Math.abs(e.amount - price) < 0.02);
+    if (i !== -1) return { idx: i, nearMatch: false };
+    // Near (within 2% for amounts > $5)
+    if (price > 5) {
+      i = pool.findIndex((e, idx) => !used.has(idx) && Math.abs(e.amount - price) / price < 0.02);
+      if (i !== -1) return { idx: i, nearMatch: true };
+    }
+    return null;
+  }
+
+  const matched = [], noInvoice = [], nearMatches = [];
+
+  for (const part of estimateParts) {
+    const hit = findMatch(part.price);
+    if (hit) {
+      used.add(hit.idx);
+      const inv = pool[hit.idx];
+      if (hit.nearMatch) nearMatches.push({ part, inv });
+      else               matched.push({ part, inv });
+    } else {
+      noInvoice.push(part);
+    }
+  }
+
+  // Remaining pool entries not matched to any estimate part (filter noise < $5)
+  const notOnEstimate = pool.filter((_, i) => !used.has(i) && pool[i].amount >= 5.00);
+
+  return { matched, nearMatches, noInvoice, notOnEstimate };
+}
+
+function renderInvoiceResults({ matched, nearMatches, noInvoice, notOnEstimate }, invoiceCount, estimateParts, pool) {
+  const fmt = n => '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const totalMatched = matched.length + nearMatches.length;
+  const totalParts = estimateParts.length;
+
+  let h = `<div class="inv-results">
+    <div class="inv-results-title">Invoice Review</div>
+    <div class="inv-results-sub">${invoiceCount} invoice${invoiceCount !== 1 ? 's' : ''} · ${totalParts} estimate part${totalParts !== 1 ? 's' : ''} · ${pool.length} invoice price${pool.length !== 1 ? 's' : ''} extracted</div>
+    <div class="inv-counts">
+      <div class="inv-count green"><span class="inv-num">${totalMatched}</span><span class="inv-lbl">Matched</span></div>
+      <div class="inv-count ${noInvoice.length ? 'red' : 'green'}"><span class="inv-num">${noInvoice.length}</span><span class="inv-lbl">No Invoice</span></div>
+      <div class="inv-count ${notOnEstimate.length ? 'amber' : 'green'}"><span class="inv-num">${notOnEstimate.length}</span><span class="inv-lbl">Not on Estimate</span></div>
+      ${nearMatches.length ? `<div class="inv-count amber"><span class="inv-num">${nearMatches.length}</span><span class="inv-lbl">Price Diff</span></div>` : ''}
+    </div>`;
+
+  // ── Parts on estimate with no matching invoice ────────────────────────────
+  if (noInvoice.length) {
+    h += `<div class="inv-section red-border">
+      <div class="inv-section-title">No Invoice Found (${noInvoice.length})</div>
+      <div class="inv-section-sub">These parts appear on the estimate but no matching price was found in the uploaded invoices.</div>
+      <table class="inv-table">
+        <thead><tr><th>Line</th><th>Description</th><th>Type</th><th class="r">Est. Price</th></tr></thead>
+        <tbody>`;
+    for (const p of noInvoice) {
+      h += `<tr>
+        <td class="muted">${p.line ?? '—'}</td>
+        <td>${esc(p.description)}</td>
+        <td class="muted">${esc(p.partType)}</td>
+        <td class="r">${fmt(p.price)}</td>
+      </tr>`;
+    }
+    h += `</tbody></table></div>`;
+  }
+
+  // ── Price discrepancies ────────────────────────────────────────────────────
+  if (nearMatches.length) {
+    h += `<div class="inv-section amber-border">
+      <div class="inv-section-title">Price Discrepancies (${nearMatches.length})</div>
+      <div class="inv-section-sub">Estimate and invoice prices are close but not identical — verify these lines.</div>
+      <table class="inv-table">
+        <thead><tr><th>Line</th><th>Description</th><th class="r">Est. Price</th><th class="r">Inv. Price</th><th>Invoice</th></tr></thead>
+        <tbody>`;
+    for (const { part, inv } of nearMatches) {
+      const diff = inv.amount - part.price;
+      h += `<tr>
+        <td class="muted">${part.line ?? '—'}</td>
+        <td>${esc(part.description)}</td>
+        <td class="r">${fmt(part.price)}</td>
+        <td class="r" style="color:${diff > 0 ? '#16a34a' : '#dc2626'}">${fmt(inv.amount)}</td>
+        <td class="src">${esc(inv.source)}</td>
+      </tr>`;
+    }
+    h += `</tbody></table></div>`;
+  }
+
+  // ── Invoice amounts not found on estimate ─────────────────────────────────
+  if (notOnEstimate.length) {
+    // Group by invoice file
+    const grouped = {};
+    for (const inv of notOnEstimate) {
+      if (!grouped[inv.source]) grouped[inv.source] = [];
+      grouped[inv.source].push(inv);
+    }
+    h += `<div class="inv-section amber-border">
+      <div class="inv-section-title">On Invoice — Not on Estimate (${notOnEstimate.length})</div>
+      <div class="inv-section-sub">These prices appear in the invoices but have no matching line on the estimate. Review whether any should be added.</div>
+      <table class="inv-table">
+        <thead><tr><th>Price</th><th>Line from Invoice</th><th>Invoice File</th></tr></thead>
+        <tbody>`;
+    for (const [src, items] of Object.entries(grouped)) {
+      for (const inv of items) {
+        h += `<tr>
+          <td class="r" style="width:80px">${fmt(inv.amount)}</td>
+          <td class="muted">${esc(inv.context)}</td>
+          <td class="src">${esc(src)}</td>
+        </tr>`;
+      }
+    }
+    h += `</tbody></table></div>`;
+  }
+
+  // ── Matched (collapsible) ─────────────────────────────────────────────────
+  if (matched.length) {
+    h += `<details class="inv-collapsible inv-section green-border">
+      <summary><div class="inv-section-title">Matched (${matched.length})</div>
+      <div class="inv-section-sub">Estimate prices confirmed in uploaded invoices.</div></summary>
+      <table class="inv-table">
+        <thead><tr><th>Line</th><th>Description</th><th>Type</th><th class="r">Price</th><th>Invoice</th></tr></thead>
+        <tbody>`;
+    for (const { part, inv } of matched) {
+      h += `<tr>
+        <td class="muted">${part.line ?? '—'}</td>
+        <td>${esc(part.description)}</td>
+        <td class="muted">${esc(part.partType)}</td>
+        <td class="r">${fmt(part.price)}</td>
+        <td class="src">${esc(inv.source)}</td>
+      </tr>`;
+    }
+    h += `</tbody></table></details>`;
+  }
+
+  // ── Diagnostic (always shown, helps spot parsing problems) ────────────────
+  h += `<details class="inv-collapsible inv-section" style="border-color:#e5e7eb;">
+    <summary><div class="inv-section-title" style="font-size:11pt;color:#6b7280;">Diagnostic — parsed data</div></summary>
+    <div class="inv-section-sub">Use this to verify the parser found the right prices. If estimate prices look wrong, try ↡ Parse Full JSON to inspect raw data.</div>
+    <table class="inv-table">
+      <thead><tr><th>Line</th><th>Estimate Part Description</th><th>Type</th><th class="r">Extended Price</th></tr></thead>
+      <tbody>${estimateParts.map(p => `<tr>
+        <td class="muted">${p.line ?? '—'}</td>
+        <td>${esc(p.description)}</td>
+        <td class="muted">${esc(p.partType)}</td>
+        <td class="r">${fmt(p.price)}</td>
+      </tr>`).join('')}</tbody>
+    </table>
+    <div style="margin-top:12px;font-size:8.5pt;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;">Invoice Prices Extracted (${pool.length})</div>
+    <table class="inv-table" style="margin-top:6px;">
+      <thead><tr><th class="r" style="width:70px">Amount</th><th>Row from Invoice</th><th>File</th></tr></thead>
+      <tbody>${pool.map(e => `<tr>
+        <td class="r">${fmt(e.amount)}</td>
+        <td class="muted">${esc(e.context)}</td>
+        <td class="src">${esc(e.source)}</td>
+      </tr>`).join('')}</tbody>
+    </table>
+  </details>`;
+
+  h += `</div>`;
+  return h;
 }
 
 // ── App flow ──────────────────────────────────────────────────────────────────
@@ -1056,8 +1570,11 @@ function resetApp() {
   document.getElementById('uploadSection').style.display = '';
   document.getElementById('statusDiv').classList.add('hidden');
   document.getElementById('fileInput').value = '';
-  document.getElementById('ppageInput').value = '';
   window._roNumber = 'RO';
+  window._ppageOnEstimate = null;
+  _roOutputFolder = null;
+  const invEl = document.getElementById('invoiceResults');
+  if (invEl) invEl.innerHTML = '';
 }
 
 async function triggerFullJSON() {
@@ -1136,7 +1653,7 @@ async function triggerDenibCalc() {
       if (/^overlap\b/i.test(item.description || ''))     continue;
       if (/clear\s*coat/i.test(item.description || ''))  continue;
       if (/interior|jamb/i.test(item.description || '')) continue;
-      if (item.paint < 0.5)                              continue;
+      if (!_isBuffablePanel(item.description) && !_isBuffablePanel(currentSection)) continue;
 
       const label   = _panelLabel(item.description, currentSection, item.operation);
       const buffHrs = Math.round(item.paint * 0.30 * 10) / 10;
@@ -1144,14 +1661,14 @@ async function triggerDenibCalc() {
     }
 
     if (!panels.length) {
-      alert('No paintable panels found (excluding bumpers, miscellaneous, and additions).');
+      alert('No buffable panels found (only fenders, doors, hoods, quarter panels, aperture panels, cabs, tailgates, and box side outer panels are included).');
       return;
     }
 
     const totalPaint = Math.round(panels.reduce((s, p) => s + p.paintHrs, 0) * 10) / 10;
     const totalBuff  = Math.round(panels.reduce((s, p) => s + p.buffHrs,  0) * 10) / 10;
 
-    _buildDenibPDF(panels, totalPaint, totalBuff, ro, vehicle);
+    await _buildDenibPDF(panels, totalPaint, totalBuff, ro, vehicle);
   } catch(e) {
     alert('De/Nib calculation error: ' + e.message);
     console.error(e);
@@ -1160,7 +1677,7 @@ async function triggerDenibCalc() {
   }
 }
 
-function _buildDenibPDF(panels, totalPaint, totalBuff, ro, vehicle) {
+async function _buildDenibPDF(panels, totalPaint, totalBuff, ro, vehicle) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ format: 'letter', unit: 'mm' });
 
@@ -1308,7 +1825,20 @@ function _buildDenibPDF(panels, totalPaint, totalBuff, ro, vehicle) {
   doc.setFontSize(9);
   doc.text('REV. 8-17', RM, FY + 5, { align: 'right' });
 
-  doc.save(`RO_${ro || 'estimate'}_DenibPolish.pdf`);
+  const filename = `RO_${ro || 'estimate'}_DenibPolish.pdf`;
+
+  if (_roOutputFolder) {
+    try {
+      const buf = doc.output('arraybuffer');
+      const fh  = await _roOutputFolder.getFileHandle(filename, { create: true });
+      const writable = await fh.createWritable();
+      await writable.write(buf);
+      await writable.close();
+      return; // saved to folder — no browser download needed
+    } catch (_) { /* fall through to download if write fails */ }
+  }
+
+  doc.save(filename);
 }
 
 async function processFile(file) {
@@ -1323,11 +1853,13 @@ async function processFile(file) {
     window._lastFile = file;
     showStatus('Analyzing estimate…');
     await new Promise(r => setTimeout(r, 80));
+    _roOutputFolder = null;
     const html = render(rawText);
     document.getElementById('statusDiv').classList.add('hidden');
     const res = document.getElementById('resultsSection');
     res.innerHTML = html;
     res.classList.remove('hidden');
+    updatePPageFolderLabel();
   } catch(e) {
     showStatus('Error reading PDF: ' + e.message, 'error');
     document.getElementById('uploadSection').style.display = '';
