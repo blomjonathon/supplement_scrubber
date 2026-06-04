@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CCC One Estimate Auditor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #e8e8e8;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: 10pt;
+  color: #1a1a2e;
+  padding: 24px 16px;
+  min-height: 100vh;
+}
+.page {
+  background: #fff;
+  width: 920px;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 48px 64px 64px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.15);
+}
+.doc-header {
+  margin-bottom: 32px;
+  border-bottom: 2.5px solid #2563eb;
+  padding-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+.doc-title { font-size: 22pt; font-weight: 700; color: #1a1a2e; }
+.doc-sub { font-size: 10pt; color: #6b7280; margin-top: 4px; }
+
+/* Upload */
+.upload-area {
+  border: 2px dashed #93c5fd;
+  border-radius: 10px;
+  padding: 52px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  background: #f8faff;
+}
+.upload-area:hover, .upload-area.drag-over { background: #eff6ff; border-color: #2563eb; }
+.upload-icon { font-size: 32pt; margin-bottom: 12px; }
+.upload-text { font-size: 13pt; font-weight: 600; color: #1a1a2e; margin-bottom: 6px; }
+.upload-sub { font-size: 10pt; color: #6b7280; }
+.file-link { color: #2563eb; cursor: pointer; text-decoration: underline; }
+.hidden { display: none !important; }
+.status { text-align: center; padding: 20px; font-size: 11pt; color: #2563eb; }
+.status.error { color: #dc2626; }
+
+/* Spinner */
+.spinner {
+  display: inline-block; width: 16px; height: 16px;
+  border: 2.5px solid #bfdbfe; border-top-color: #2563eb;
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+  vertical-align: middle; margin-right: 8px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Vehicle card */
+/* .vehicle-card {
+  background: #f8faff; border: 1px solid #bfdbfe;
+  border-radius: 8px; padding: 16px 20px; margin-bottom: 24px;
+} */
+.card-label {
+  font-size: 8pt; font-weight: 700; color: #2563eb;
+  text-transform: uppercase; letter-spacing: 0.07em;
+  font-family: 'Courier New', monospace; margin-bottom: 10px;
+}
+.info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 16px; }
+.info-item label { font-size: 8pt; color: #6b7280; display: block; }
+.info-item span { font-size: 10pt; font-weight: 600; color: #1a1a2e; }
+
+/* Conditions grid */
+.section-title {
+  font-size: 12pt; font-weight: 700; color: #1a1a2e;
+  margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid #e5e7eb;
+}
+.cond-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 24px; }
+.cond-tag { display: flex; align-items: center; gap: 7px; padding: 7px 10px; border-radius: 6px; font-size: 9pt; font-weight: 600; }
+.cond-tag.yes { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }
+.cond-tag.no  { background: #f9fafb; color: #9ca3af; border: 1px solid #e5e7eb; }
+.cond-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.yes .cond-dot { background: #16a34a; }
+.no  .cond-dot { background: #d1d5db; }
+
+/* Summary bar */
+.summary-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  background: #1a1a2e; color: white; border-radius: 8px;
+  padding: 14px 22px; margin-bottom: 20px;
+}
+.sum-counts { display: flex; gap: 28px; }
+.sum-count { text-align: center; }
+.sum-num { font-size: 20pt; font-weight: 700; display: block; line-height: 1; }
+.sum-lbl { font-size: 8pt; color: #9ca3af; margin-top: 2px; white-space: nowrap; }
+.sum-count.c .sum-num { color: #f87171; }
+.sum-count.w .sum-num { color: #fbbf24; }
+.sum-count.b .sum-num { color: #c4b5fd; }
+
+/* Actions */
+.actions { display: flex; gap: 10px; margin-bottom: 28px; flex-wrap: wrap; }
+.btn {
+  padding: 9px 18px; font-size: 9.5pt; font-weight: 600;
+  border-radius: 6px; cursor: pointer; border: none;
+  font-family: 'Segoe UI', Arial, sans-serif; transition: background 0.15s;
+}
+.btn-primary { background: #2563eb; color: white; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-secondary { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+.btn-secondary:hover { background: #e5e7eb; }
+
+/* Group header */
+.group-header {
+  font-size: 9pt; font-weight: 700; color: #2563eb;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  font-family: 'Courier New', monospace;
+  margin: 20px 0 8px;
+}
+.group-header.critical { color: #dc2626; }
+.group-header.warning  { color: #d97706; }
+.group-header.blend    { color: #7c3aed; }
+.group-header:first-child { margin-top: 0; }
+
+/* Note cards — matches supplement_line_notes style */
+.note {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 13px 0; border-bottom: 0.5px solid #e5e7eb;
+}
+.note:last-child { border-bottom: none; }
+.note-body { flex: 1; min-width: 0; }
+.note-code {
+  font-size: 8pt; font-weight: 700; color: #2563eb;
+  font-family: 'Courier New', monospace; margin-bottom: 2px; letter-spacing: 0.03em;
+}
+.note-code.critical { color: #dc2626; }
+.note-code.warning  { color: #d97706; }
+.note-code.blend    { color: #7c3aed; }
+.note-title { font-size: 10.5pt; font-weight: 700; color: #111827; margin-bottom: 5px; line-height: 1.3; }
+.note-text  { font-size: 9.5pt; color: #374151; line-height: 1.6; }
+
+.copy-btn {
+  flex-shrink: 0; margin-top: 2px; padding: 5px 13px;
+  font-size: 8.5pt; font-weight: 600; color: #2563eb;
+  background: #eff6ff; border: 1px solid #bfdbfe;
+  border-radius: 5px; cursor: pointer; white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+  display: flex; align-items: center; gap: 5px;
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+.copy-btn:hover { background: #dbeafe; }
+.copy-btn.copied { background: #f0fdf4; color: #16a34a; border-color: #86efac; }
+.copy-btn svg { width: 12px; height: 12px; flex-shrink: 0; }
+
+/* Miss sections */
+.miss-section {
+  border-top: 2.5px solid #e5e7eb; padding-top: 20px; margin-bottom: 28px;
+}
+.miss-section.critical { border-color: #fca5a5; }
+.miss-section.warning  { border-color: #fde68a; }
+.miss-section.blend    { border-color: #c4b5fd; }
+
+.miss-section-title { font-size: 14pt; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+.miss-section-sub { font-size: 9pt; color: #6b7280; margin-bottom: 16px; font-style: italic; }
+
+/* All clear */
+.all-clear {
+  text-align: center; padding: 36px;
+  background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px;
+}
+.all-clear-title { font-size: 16pt; font-weight: 700; color: #16a34a; margin-bottom: 6px; }
+.all-clear-sub { font-size: 10pt; color: #6b7280; }
+
+@media print {
+  body { background: white; padding: 0; }
+  .page { box-shadow: none; width: 100%; padding: 0.5in; }
+  .upload-area, .actions { display: none !important; }
+  .status { display: none; }
+  .note { break-inside: avoid; }
+  .copy-btn { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="doc-header">
+    <div>
+      <div class="doc-title">Estimate Auditor</div>
+      <div class="doc-sub">CCC One — Missing Operations Checker</div>
+    </div>
+    <div style="font-size:9pt;color:#9ca3af;text-align:right;">New Central Auto</div>
+  </div>
+
+  <!-- Hidden input for P-page PDFs -->
+  <input type="file" id="ppageInput" multiple accept=".pdf" style="display:none">
+
+  <div id="uploadSection">
+    <div class="upload-area" id="uploadArea">
+      <div class="upload-icon">📋</div>
+      <div class="upload-text">Drop a CCC One estimate PDF here</div>
+      <div class="upload-sub">or <label class="file-link" for="fileInput">click to browse</label></div>
+      <input type="file" id="fileInput" accept=".pdf" style="display:none">
+    </div>
+  </div>
+
+  <div id="statusDiv" class="status hidden"></div>
+  <div id="resultsSection" class="hidden"></div>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── Note library ─────────────────────────────────────────────────────────────
+// Each key matches an item name returned by the rules engine.
+
+const NOTES = {
+  // ── Conditional ───────────────────────────────────────────────────────────
+  'Mask Jambs': {
+    code: 'a9.4', sev: 'critical',
+    title: 'Mask Jambs',
+    text: "This operation covers the specialized labor and materials required to seal the interior door openings, pillar jambs, and passenger cabin before painting. Because factory tolerances require painting the exterior panels while doors or lids are closed or slightly ajar, specialized foam tracking and masking tapes must be applied inside the gaps. This creates an airtight seal that prevents airborne paint overspray from drifting into the vehicle's interior, onto leather upholstery, or onto clean factory-finished inner door frames."
+  },
+  'R&I Air Bag Sensors in Door': {
+    code: 'a9.4a', sev: 'critical',
+    title: 'R&I Air Bag Sensors in Door',
+    text: "This operation covers the removal and reinstallation of the side-impact air bag sensor module mounted inside the door assembly. When a door is replaced, the factory-installed sensor must be carefully unplugged and transferred to the replacement door. Failure to properly transfer and reconnect the sensor leaves the occupant protection system incomplete and may trigger diagnostic fault codes that prevent the vehicle from passing safety inspection."
+  },
+  'Feather, Prime & Block': {
+    code: 'a90.4', sev: 'critical',
+    title: 'Feather, Prime & Block',
+    text: "This operation covers the highly meticulous multi-stage process required to restore a repaired panel to a perfectly flat, factory-smooth surface before final paint is applied. When a panel is repaired, a micro-step exists between the repaired zone and the original paint. This process expands (feathers) that edge, applies a specialized high-build primer to fill the micro-grooves, and manually sands the area using a sanding block to verify the structural contour is flawless. Without this operation, the new paint will sink, revealing unsightly sand scratches and surface distortions."
+  },
+  'Mask for Primer': {
+    code: 'a90.5', sev: 'critical',
+    title: 'Mask for Primer',
+    text: "This operation covers the initial, separate labor and materials required to protect the vehicle before the liquid primer coating is applied. High-build filler primer is a heavy, fast-drying chemical that creates a massive amount of airborne overspray and fine dust during application. This step completely seals off the rest of the vehicle, engine bay, and adjacent glass to ensure this sticky primer residue does not contaminate clean factory panels, avoiding surface damage before the final paint process begins."
+  },
+  'Color Tint / Color Match': {
+    code: 'a9.8', sev: 'critical',
+    title: 'Color Tint / Color Match',
+    text: "This operation covers the highly precise chemical adjustment and manual blending of paint toners required to match the vehicle's current, real-world finish. While factory paint codes provide a starting formula, a vehicle's actual color shifts due to assembly plant variations, age, and sun exposure. The painter must manually mix and alter the formula to achieve an exact visual match before application, preventing a mismatched patch effect."
+  },
+  'Let Down Panel': {
+    code: 'a9.9', sev: 'critical',
+    title: 'Let Down Panel',
+    text: "This operation covers the physical labor and materials required to create a physical test panel (sprayout card) before applying paint to the vehicle. For multi-layer or complex metallic colors, the painter must spray multiple test panels with varying layers of color and clear coat. This is the only technical method to accurately verify how the metallic particles layout and ensure the new paint perfectly matches the vehicle's existing finish under different lighting conditions."
+  },
+  'De-Nib and Polish': {
+    code: 'a93.5', sev: 'critical',
+    title: 'De-Nib and Polish',
+    text: "This operation covers the precision detailing process required to remove surface contamination — nibs, dust inclusions, and texture imperfections — from freshly applied clear coat before final delivery. Even in a controlled spray environment, microscopic airborne particles settle into wet clear coat during the curing process. A technician uses ultra-fine abrasive compounds to carefully level and polish the surface to a flawless, high-gloss factory finish. This step is non-negotiable for delivering a repair that is visually indistinguishable from the original factory paint."
+  },
+  'Repair Weld Zones After Panel Replacement': {
+    code: 'a90.9', sev: 'critical',
+    title: 'Repair Weld Zones After Panel Replacement',
+    text: "This operation covers the extra sanding and smoothing needed to make a welded area ready for paint. According to national repair databases, a metal technician is only required to smooth down a welded seam using rough sandpaper (150-grit). This leaves the metal very rough and scratchy. If we paint directly over it, the paint will sink into the deep scratches, wrinkle, and eventually peel off. This step covers the extra labor to sand those rough scratches away with finer paper and seal the metal so the paint sticks perfectly."
+  },
+  'Set Back Wiring': {
+    code: 'a91.2', sev: 'critical',
+    title: 'Set Back Wiring',
+    text: "This operation covers the manual labor required to carefully unclip, disconnect, and move (set back) factory electrical wiring harnesses away from areas where heavy repairs are happening. Modern vehicles run thick bundles of sensitive wiring directly behind exterior body panels and frame rails. To prevent these vital electrical lines from being melted by welding heat, punctured by structural pulling equipment, or severed by cutting tools, a technician must safely displace and secure them out of harm's way before any structural work begins, then route them back once repairs are complete."
+  },
+  'Welder Set Up': {
+    code: 'a91.3', sev: 'critical',
+    title: 'Welder Set Up',
+    text: "This operation covers the mandatory safety setup and calibration required before performing structural welds on a vehicle. Modern vehicles are built using highly specialized, heat-sensitive metals like Ultra-High-Strength Steel (UHSS) or aluminum. To ensure a safe, factory-quality bond, the technician must configure the welding equipment's voltage, wire-feed speed, and shielding gas mix to match the exact thickness and metallurgical profile of the specific panel being replaced. This setup cycle must be completed before any joining of metal begins."
+  },
+  'Remove Factory Seam Sealer from Adjacent Panels': {
+    code: 'a91.4', sev: 'critical',
+    title: 'Remove Factory Seam Sealer from Adjacent Panels',
+    text: "This operation covers the manual labor required to scrape and grind away heavy factory rubber seam sealers from panels immediately next to the repair zone. When replacing or pulling a structural component, the extreme heat from welding or the physical stress of frame-pulling equipment will melt, burn, or crack the rubber sealers on adjoining panels. To prevent toxic smoke, vehicle fires, and hidden rust pockets from forming underneath burnt rubber, the technician must entirely strip these nearby coatings down to bare metal before work begins, then prep those surfaces for new sealer application later."
+  },
+  'Remove Adhesives': {
+    code: 'a91.1', sev: 'critical',
+    title: 'Remove Adhesives',
+    text: "This operation covers the manual labor and specialized chemical solvents required to strip away old, hardened factory glue, double-sided tape residue, and emblem adhesives from the vehicle's body panels. Standard washing or paint prep does not dissolve these heavy bonding agents. The technician must carefully apply chemical adhesive removers and manually scrape away the residue using non-marring tools. This ensures a perfectly clean, bare surface so that new replacement moldings, emblems, or paint coatings can bond securely without failing or peeling."
+  },
+  'Old Urethane Removal': {
+    code: 'a91.5', sev: 'critical',
+    title: 'Old Urethane Removal',
+    text: "This operation covers the precise labor required to remove the old, hardened windshield glue (urethane) left on the vehicle's frame after a glass panel is removed. To ensure a safe bond, federal motor vehicle safety standards and factory guidelines state that new glass cannot be glued directly on top of a thick, old adhesive bed. The technician must carefully shave the old urethane layer down to a uniform thickness of roughly 1mm to 2mm without scratching the underlying paint or metal, creating a stable, structurally compliant foundation for the new glass installation."
+  },
+  'Glass Kit': {
+    code: 'a92.7', sev: 'critical',
+    title: 'Glass Kit',
+    text: "This operation covers the adhesive urethane kit, primer, and associated materials required to bond replacement glass to the vehicle's pinch weld frame. OEM glass installation specifications require the use of a complete, vehicle-matched adhesive kit to meet federal safety standards (FMVSS 212). Using partial or mismatched adhesive materials compromises the structural integrity of the windshield, which functions as a load-bearing component of the vehicle's safety cell during a rollover or frontal impact."
+  },
+  'Sublet Stall Time': {
+    code: 'a90', sev: 'critical',
+    title: 'Sublet Stall Time (A/C, Scans & Clear Bra)',
+    text: "This operation covers the physical stall space, vehicle lift, high-voltage clean-power supply, and specialized safety ventilation required while an outside vendor occupies a service bay. During procedures like air conditioning recharging, computerized diagnostic scanning, or paint protection film (PPF) application, a dedicated production bay is entirely tied up and cannot be used by our team. This line covers the physical footprint and utility resources required to host these specialized technical operations on-site."
+  },
+  'Clamp Damage / Pinchweld Repair': {
+    code: 'a9.3', sev: 'critical',
+    title: 'Clamp Damage / Pinchweld Repair',
+    text: "This operation covers the mandatory labor required to repair and re-seal the vehicle's bottom mounting flanges (pinchwelds) after a structural correction. To safely perform the heavy hydraulic frame pulling required for this vehicle, the chassis must be locked to the frame machine using hardened steel anchoring clamps. The immense pressure required to hold the car in place naturally scars the factory metal, coating, and texture. This operation straightens the clamped metal flanges and restores the factory anti-corrosion sealants to prevent future rust and structural degradation."
+  },
+  'Refinish Pinch Welds': {
+    code: 'a9.3a', sev: 'critical',
+    title: 'Refinish Pinch Welds',
+    text: "This operation covers the labor and materials required to clean, prime, and refinish the vehicle's pinchweld flanges after structural frame work is completed. The pinchweld areas are exposed bare metal after clamp removal and sealer stripping. Without re-applying a factory-equivalent primer and sealer coating, these unprotected steel surfaces will begin to rust within weeks of the vehicle being returned to the road, leading to structural corrosion and potential warranty disputes."
+  },
+  'Tram Radiator Support': {
+    code: 'a9.2', sev: 'critical',
+    title: 'Tram Radiator Support',
+    text: "This operation covers the precision measurement of the radiator support assembly using a specialized tram gauge to verify its exact height, width, and diagonal dimensions against factory engineering blueprints. Because the radiator support serves as the structural foundation for the entire front-end cooling package, headlamps, and advanced driver-assist radar sensors, it must be measured in a three-dimensional matrix. This ensures all critical safety and cooling components align to millimeter-level factory tolerances before reassembly."
+  },
+  'Clean / Inspect / De-Trim Recycled Parts': {
+    code: 'a90.2', sev: 'critical',
+    title: 'Clean / Inspect / De-Trim Recycled Parts',
+    text: "This operation covers the labor required to process a recycled salvage component before it can be used. Unlike a new factory part, a recycled assembly arrives with old dirt, road grime, broken glass, and leftover donor-vehicle trim pieces (molding, handles, wiring, and brackets). This labor is required to thoroughly clean the assembly, inspect it for hidden transport damage, and completely strip away all old trim components. Stripping the panel to a bare shell is mandatory to allow for proper sanding, surface preparation, and seamless paint application."
+  },
+
+  // ── Always check ──────────────────────────────────────────────────────────
+  'Re-Key Fee (Match Insurance Initial Estimate)': {
+    code: 'a4.5', sev: 'warning',
+    title: 'Re-Key Fee (Match Insurance Initial Estimate)',
+    text: "This operation covers the labor required to manually input and mirror the insurer's initial estimate layout into our management system. By matching line items and structure exactly, we provide your desk auditors with a transparent, apples-to-apples view that drastically reduces review time and speeds up subsequent supplement approvals."
+  },
+  'Pre-wash Vehicle for Inspection': {
+    code: 'a5', sev: 'warning',
+    title: 'Pre-wash Vehicle for Inspection',
+    text: "This operation is required to remove road grime, dirt, and debris from the vehicle prior to the blueprinting process. A clean surface is mandatory to accurately detect hidden micro-cracks, hairline fractures, and subtle paint transfers that are otherwise invisible, ensuring a complete and accurate initial supplement that prevents costly delays later."
+  },
+  'Disconnect/Reconnect Battery': {
+    code: 'a6', sev: 'warning',
+    title: 'Disconnect/Reconnect Battery',
+    text: "This operation isolates the vehicle's electrical system before structural, welding, or component removal work begins. Disconnecting the battery protects sensitive onboard microprocessors from destructive power surges, prevents accidental airbag deployment, and safeguards the battery from complete discharge while doors, trunks, and interior modules remain open during extended repair stages."
+  },
+  'OEM Procedure Research Admin Time': {
+    code: 'a8', sev: 'warning',
+    title: 'OEM Procedure Research Admin Time',
+    text: "This operation covers the highly technical administrative labor required to retrieve, review, and document the vehicle manufacturer's specific (OEM) repair mandates for this exact year, make, model, and trim. Because modern vehicle safety structures rely on specific steel types, sectioning locations, and one-time-use components, this research is a mandatory compliance step to ensure the vehicle is restored to original crashworthiness safety standards."
+  },
+  'Set-Up & Measure': {
+    code: 'a9', sev: 'warning',
+    title: 'Set-Up & Measure',
+    text: "This operation covers the frame labor required to mount, level, and rigidly anchor the vehicle's unibody or frame to a specialized structural alignment machine. Once anchored, precision electronic measuring systems are used to map the vehicle's current dimensions against factory blueprints. This highly technical process is required to diagnose structural deviations and establish the rigid foundation necessary to safely execute subsequent corrective frame pulls."
+  },
+  'Body Pull / Sheetmetal Pull': {
+    code: 'a9.1', sev: 'warning',
+    title: 'Body Pull / Sheetmetal Pull',
+    text: "This operation covers the mechanical pulling required to reverse the deep impact folds and high-tension creases within the metal panel. This heavy rough-shaping process must be completed first to relieve the trapped structural stress in the metal and restore its basic contours. Only after the panel's primary shape is structurally realigned can the technician perform the precision metal finishing, smoothing, and contouring work required for paint preparation."
+  },
+  'Trip Charge / Sublet Stall Time': {
+    code: 'a9.5 / a90', sev: 'warning',
+    title: 'Trip Charge / Sublet Stall Time',
+    text: "This operation covers the labor required to safely transport the vehicle to a specialized off-site facility and back. This is necessary to complete advanced mechanical work, wheel alignments, or dealer-specific safety calibrations that require equipment not available inside a standard collision repair shop."
+  },
+  'Clear Bra Removal': {
+    code: 'a9.6', sev: 'warning',
+    title: 'Clear Bra Removal',
+    text: "This operation covers the labor and chemical process required to peel back and safely remove the existing clear paint protection film from the damaged panel. This must be completed before any metal repair or paint preparation can begin. It includes carefully dissolving the hardened factory adhesives beneath the film to ensure a completely clean, residue-free surface that guarantees proper new paint adhesion."
+  },
+  'Seatbelt Inspection': {
+    code: 'a9.7', sev: 'warning',
+    title: 'Seatbelt Inspection',
+    text: "This operation covers the mandatory technical inspection of all seatbelts and anchoring points following an impact, per vehicle manufacturer safety guidelines. Because seatbelt webbing and internal retractor mechanisms are engineered to stretch and lock to absorb crash energy, they can suffer permanent, invisible structural damage during a collision. This physical inspection verifies the restraint system functions perfectly to ensure occupant safety before the vehicle returns to the road."
+  },
+  'Rope Glass / Additional Not Included Masking': {
+    code: 'a90.1', sev: 'warning',
+    title: 'Rope Glass / Additional Not Included Masking',
+    text: "This operation covers the specialized labor and materials required to thread a flexible cord (rope) beneath the weatherstripping of permanently installed glass panels (like windshields or quarter glass). By physically lifting the rubber seal away from the metal body, the painter can apply paint completely underneath the lip of the molding. This is the only technical method that prevents a visible paint edge, eliminates the risk of the new paint peeling later, and ensures the factory weatherproofing seal remains unbroken."
+  },
+  'Second Color Set-Up': {
+    code: 'a90.6', sev: 'warning',
+    title: 'Second Color Set-Up',
+    text: "This operation covers the separate labor and material setup required when a vehicle features two distinct colors (such as a two-tone roof, accent-colored mirror caps, or contrasting lower trim panels). Because a paint spray gun can only atomize one color chemical profile at a time, the painter must entirely clean the spray equipment, purge lines, mix an entirely different paint chemistry, and re-mask the vehicle to isolate the second zone. This setup process must be executed for each independent color applied."
+  },
+  'Clean for Delivery': {
+    code: 'a90.7', sev: 'warning',
+    title: 'Clean for Delivery',
+    text: "This operation covers the mandatory cleaning of the vehicle before it is returned to the owner. The repair process fills the air with fine metal dust, sanding residue, and chemical odors. This labor thoroughly cleans the interior and exterior to ensure no abrasive dust, sharp repair debris, or chemical residues are left behind to irritate the driver or passengers."
+  },
+  'Insurance Claim Admin': {
+    code: 'a90.8', sev: 'warning',
+    title: 'Insurance Claim Admin',
+    text: "This operation covers the extensive administrative labor required to build, format, and upload the highly detailed repair file required by the insurance company. Historically, insurance adjusters visited the shop to physically document the damage and write the files. Today, insurers require the repair facility to handle 100% of this workload. This charge covers the administrative time spent capturing line-of-sight digital photo evidence, indexing structural repair logs, inputting data line-by-line into the insurer's portal, and managing the electronic documentation pipeline necessary to secure claim approval."
+  },
+  'Duplicate Factory E-Coat': {
+    code: 'a91', sev: 'warning',
+    title: 'Duplicate Factory E-Coat',
+    text: "This operation covers the labor and paint materials required to match the original factory color on the inside of the new panel. Replacement parts arrive from the factory coated in a generic black shipping primer. Because the vehicle's original inner panels (such as the engine bay or underside of the hood) are a different factory color, our painter must mix a custom matching color and spray the interior side of the panel. This replaces the black shipping layer and restores the vehicle's inside areas to their exact pre-accident color and appearance."
+  },
+  'OEM Part Label Removal': {
+    code: 'a91.6', sev: 'warning',
+    title: 'OEM Part Label Removal',
+    text: "This operation covers the labor and chemical cleanup required to remove unsightly factory barcode stickers and paper tracking labels from new replacement parts. Vehicles do not leave the factory showroom floor with bright inventory stickers slapped all over their suspension, engine bay, or structural components. To correctly restore the vehicle to its clean, pre-accident condition, these non-original shipping labels must be stripped away and the leftover adhesive residue dissolved before the parts are installed."
+  },
+  'Flash Time': {
+    code: 'a91.7', sev: 'warning',
+    title: 'Flash Time',
+    text: "This operation covers the mandatory, non-productive waiting time required between the application of each layer of paint and clear coat. Automotive paint relies on chemical solvents to carry the color smoothly onto the panel. Before the next layer can be sprayed, these solvents must naturally evaporate (or 'flash') out of the wet finish. If a painter sprays the next coat too quickly without waiting for this chemical cycle to complete, the trapped solvents will cause the paint to cloud, bubble, or peel, resulting in total finish failure."
+  },
+  'Fine Line Masking': {
+    code: 'a91.8', sev: 'warning',
+    title: 'Fine Line Masking',
+    text: "This operation covers the specialized labor required to seal off critical seams, door jambs, and panel gaps using ultra-thin, flexible 'fine line' tape. Standard masking tape is thick and wrinkles around curves, allowing paint to bleed underneath and leave sharp, jagged edges that look unprofessional and peel over time. The painter must manually apply this specialized, razor-sharp edge tape to create a perfectly clean, seamless barrier. This ensures the new paint stops precisely where the factory intended, leaving no visible paint lines or overspray gaps."
+  },
+};
+
+// SVG icons
+const COPY_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+const CHECK_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+// Copy text for a single note button
+let _noteTexts = {};
+function copyNote(id) {
+  const text = _noteTexts[id];
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('cpbtn-' + id);
+    if (!btn) return;
+    btn.innerHTML = CHECK_ICON + ' Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.innerHTML = COPY_ICON + ' Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+// Render a single note card
+let _noteCounter = 0;
+function noteCard(itemName, overrideText) {
+  const note = NOTES[itemName];
+  if (!note) return '';
+  const id = _noteCounter++;
+  const displayText = overrideText || note.text;
+  _noteTexts[id] = displayText;
+  return `<div class="note">
+    <div class="note-body">
+      <div class="note-code ${note.sev}">${esc(note.code)}</div>
+      <div class="note-title">${esc(note.title)}</div>
+      <div class="note-text">${esc(displayText)}</div>
+    </div>
+    <button class="copy-btn" id="cpbtn-${id}" onclick="copyNote(${id})">${COPY_ICON} Copy</button>
+  </div>`;
+}
+
+// ── PDF extraction ──────────────────────────────────────────────────────────
+
+async function extractText(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  const pages = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    pages.push(content.items.map(x => x.str).join(' '));
+  }
+  return pages.join('\n');
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+function has(text, keywords) {
+  const t = text.toLowerCase();
+  return keywords.some(k => typeof k === 'string' ? t.includes(k.toLowerCase()) : k.test(text));
+}
+
+function esc(s) {
+  return String(s || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Vehicle info ─────────────────────────────────────────────────────────────
+
+function vehicleInfo(text) {
+  const m = (re, g=1) => (text.match(re)||[])[g] || '';
+  return {
+    vin:     m(/VIN[:\s]+([A-HJ-NPR-Z0-9]{17})/i),
+    ro:      m(/RO\s*Number[:\s]+(\d+)/i),
+    claim:   m(/Claim\s*#[:\s]+([A-Z0-9-]+)/i),
+    insured: m(/Insured[:\s]+([^\n,]+)/i),
+    policy:  m(/Policy\s*#[:\s]+([A-Z0-9]+)/i),
+    date:    m(/Date\s+of\s+Loss[:\s]+([^\n]+)/i),
+  };
+}
+
+// ── Condition detection ──────────────────────────────────────────────────────
+
+function detect(text) {
+  const doorRepl =
+    /\b(?:Repl|R&R)\b[^\n]{0,35}\b(?:RT|LT)\s+(?:Front\s+|Rear\s+)?Door\b(?!\s+(?:seal|handle|glass|mirror|trim|molding|belt|lower|water|corner|cover|step|sill))/i.test(text)
+    || /\bRepl\b[^\n]{0,35}\b(?:door\s+outer|outer\s+door|door\s+shell|door\s+skin|door\s+asm)/i.test(text);
+
+  const paintTime =
+    /Paint\s+Labor\s+(?:[1-9]\d*\.?\d*|\d+\.[1-9]\d*)\s+hrs/i.test(text);
+
+  const blend   = /\bBlnd\b/i.test(text);
+  const weldedPanel = /\bRepl\b[^\n]{0,35}\b(?:quarter\s+panel|rear\s+body|floor\s+pan|floor\s+board|rocker\s+panel|center\s+pillar|b-pillar|a-pillar|c-pillar)/i.test(text);
+  const emblem  = /\bRepl\b[^\n]{0,25}\b(?:emblem|nameplate|badge|decal)\b/i.test(text);
+  const glass   = /\b(?:R&I|Repl|R&R)\b[^\n]{0,30}\b(?:windshield|door\s+glass|quarter\s+glass|back\s+glass|rear\s+glass)\b/i.test(text);
+  const sublet  = /\bSubl\b/i.test(text) || /\bSublet\b/i.test(text);
+  const frameTime = /Frame\s+Labor\s+[1-9]/i.test(text) || /\bStraighten\b[^\n]{0,20}\bframe\b/i.test(text);
+  const frontDamage =
+    /\bfront\s+bumper\b/i.test(text) || /\bheadlamp\b/i.test(text)
+    || /\bgrille\b/i.test(text) || /\bradiator\s+support\b/i.test(text)
+    || /Point\s+of\s+Impact[^\n]{0,10}(?:12|Front)/i.test(text);
+  const lkq = /\bLKQ\b/.test(text) || /\bRCY\b/.test(text) || /\bUSED\b/.test(text);
+
+  return { doorRepl, paintTime, blend, weldedPanel, emblem, glass, sublet, frameTime, frontDamage, lkq };
+}
+
+// ── Rules engine ─────────────────────────────────────────────────────────────
+
+function conditionalMissing(text, cond) {
+  const missing = [];
+  const p = kws => has(text, kws);
+
+  if (cond.doorRepl) {
+    if (!p(['mask jamb']))
+      missing.push({ trigger: 'Door Replacement', item: 'Mask Jambs' });
+    if (!p(['air bag sensor', 'airbag sensor', 'r&i side impact', 'side impact sensor']))
+      missing.push({ trigger: 'Door Replacement', item: 'R&I Air Bag Sensors in Door' });
+  }
+
+  if (cond.paintTime) {
+    if (!p(['feather', 'f,p&b', 'f/p/b', 'prime & block', 'prime and block']))
+      missing.push({ trigger: 'Paint Time Present', item: 'Feather, Prime & Block' });
+    if (!p(['mask for primer', 'mask primer', 'mask/prime', 'mask & prime']))
+      missing.push({ trigger: 'Paint Time Present', item: 'Mask for Primer' });
+    if (!p(['color tint', 'color match', 'tint/color']))
+      missing.push({ trigger: 'Paint Time Present', item: 'Color Tint / Color Match' });
+    if (!p(['let down panel', 'letdown panel']))
+      missing.push({ trigger: 'Paint Time Present', item: 'Let Down Panel' });
+    if (!p(['de-nib', 'denib', 'de nib', 'nib & buff', 'nib and buff', 'nib/buff']))
+      missing.push({ trigger: 'Paint Time Present', item: 'De-Nib and Polish' });
+  }
+
+  if (cond.weldedPanel) {
+    if (!p(['repair weld zone', 'weld zone', 'weld repair']))
+      missing.push({ trigger: 'Welded Panel Replacement', item: 'Repair Weld Zones After Panel Replacement' });
+    if (!p(['set back wiring', 'setback wiring', 'set-back wiring']))
+      missing.push({ trigger: 'Welded Panel Replacement', item: 'Set Back Wiring' });
+    if (!p(['welder set up', 'welder setup', 'welder set-up']))
+      missing.push({ trigger: 'Welded Panel Replacement', item: 'Welder Set Up' });
+    if (!p(['seam sealer', 'factory seam', 'remove seam']))
+      missing.push({ trigger: 'Welded Panel Replacement', item: 'Remove Factory Seam Sealer from Adjacent Panels' });
+  }
+
+  if (cond.emblem) {
+    if (!p(['remove adhesive', 'adhesive removal', 'adhesives']))
+      missing.push({ trigger: 'Emblem / Badge / Decal Replacement', item: 'Remove Adhesives' });
+  }
+
+  if (cond.glass) {
+    if (!p(['urethane removal', 'old urethane']))
+      missing.push({ trigger: 'Glass R&I / Replacement', item: 'Old Urethane Removal' });
+    if (!p(['glass kit', 'windshield kit']))
+      missing.push({ trigger: 'Glass R&I / Replacement', item: 'Glass Kit' });
+  }
+
+  if (cond.sublet) {
+    if (!p(['sublet stall', 'stall time']))
+      missing.push({ trigger: 'Sublet Operation Present', item: 'Sublet Stall Time' });
+  }
+
+  if (cond.frameTime) {
+    if (!p(['clamp damage', 'pinchweld repair', 'pinch weld repair', 'pinchweld']))
+      missing.push({ trigger: 'Frame Time Present', item: 'Clamp Damage / Pinchweld Repair' });
+    if (!p(['refinish pinch', 'refinish pinchweld']))
+      missing.push({ trigger: 'Frame Time Present', item: 'Refinish Pinch Welds' });
+  }
+
+  if (cond.frontDamage) {
+    if (!p(['tram radiator', 'tram rad', 'tram r/s', 'measure radiator']))
+      missing.push({ trigger: 'Front Damage Detected', item: 'Tram Radiator Support' });
+  }
+
+  if (cond.lkq) {
+    if (!p(['clean', 'inspect', 'de-trim', 'lkq prep']))
+      missing.push({ trigger: 'LKQ / Recycled Parts Detected', item: 'Clean / Inspect / De-Trim Recycled Parts' });
+  }
+
+  return missing;
+}
+
+function alwaysCheckMissing(text) {
+  const checks = [
+    { item: 'Re-Key Fee (Match Insurance Initial Estimate)',  kws: ['re-key', 'rekey', 're key fee', 'match insurance initial', 'match initial estimate'] },
+    { item: 'Pre-wash Vehicle for Inspection',               kws: ['pre-wash', 'prewash', 'pre wash'] },
+    { item: 'Disconnect/Reconnect Battery',                  kws: ['disconnect/reconnect battery', 'disconnect battery', 'reconnect battery', 'battery cable'] },
+    { item: 'OEM Procedure Research Admin Time',             kws: ['oem procedure', 'procedure research', 'oem research', 'alldata'] },
+    { item: 'Set-Up & Measure',                              kws: ['set-up & measure', 'setup & measure', 'set up & measure', 'setup and measure'] },
+    { item: 'Body Pull / Sheetmetal Pull',                   kws: ['body pull', 'sheetmetal pull', 'sheet metal pull'] },
+    { item: 'Trip Charge / Sublet Stall Time',               kws: ['trip charge', 'sublet stall', 'stall time'] },
+    { item: 'Clear Bra Removal',                             kws: ['clear bra removal', 'ppf removal', 'film removal'] },
+    { item: 'Seatbelt Inspection',                           kws: ['seatbelt', 'seat belt'] },
+    { item: 'Rope Glass / Additional Not Included Masking',  kws: ['rope glass', 'rope molding', 'rope mask'] },
+    { item: 'Second Color Set-Up',                           kws: ['second color', '2nd color'] },
+    { item: 'Clean for Delivery',                            kws: ['clean for delivery', 'cleaning for delivery'] },
+    { item: 'Insurance Claim Admin',                         kws: ['claim admin', 'insurance admin', 'photo, document', 'document claim', 'admin - photo'] },
+    { item: 'Duplicate Factory E-Coat',                      kws: ['e-coat', 'ecoat', 'duplicate e-coat', 'factory e coat'] },
+    { item: 'OEM Part Label Removal',                        kws: ['label removal', 'oem label removal', 'part label removal'] },
+    { item: 'Flash Time',                                    kws: ['flash time'] },
+    { item: 'Fine Line Masking',                             kws: ['fine line masking', 'fine line mask', 'fine-line'] },
+  ];
+  return checks.filter(({ kws }) => !has(text, kws)).map(({ item }) => item);
+}
+
+// ── Blend hours ───────────────────────────────────────────────────────────────
+
+function blendHourIssues(text) {
+  const issues = [];
+  for (const line of text.split(/\n/)) {
+    if (!/\bblnd\b/i.test(line)) continue;
+    const nums = (line.match(/\d+(?:\.\d+)?/g)||[]).map(Number).filter(n => n > 0 && n < 25);
+    if (!nums.length) {
+      issues.push({ panel: blendName(line), note: 'Paint hours could not be parsed — verify manually (min 1.5 hrs)' });
+    } else {
+      const hrs = nums[nums.length - 1];
+      if (hrs < 1.5) issues.push({ panel: blendName(line), note: `${hrs} hrs — minimum 1.5 hrs required` });
+    }
+  }
+  return issues;
+}
+
+function blendName(line) {
+  const m = line.match(/\bblnd\b\s+((?:rt\s+|lt\s+)?[^\d\n]{2,40})/i);
+  return m ? m[1].trim().replace(/\s+/g, ' ') : 'Unknown Panel';
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+
+function render(text) {
+  _noteCounter = 0;
+  _noteTexts = {};
+
+  const info     = vehicleInfo(text);
+  window._roNumber = info.ro || 'RO';
+  const cond     = detect(text);
+  const condMiss = conditionalMissing(text, cond);
+  const alwMiss  = alwaysCheckMissing(text);
+  const blMiss   = blendHourIssues(text);
+
+  const condCount = condMiss.length;
+  const alwCount  = alwMiss.length;
+  const blCount   = blMiss.length;
+  const total     = condCount + alwCount + blCount;
+
+  // Group conditional missing by trigger
+  const groups = {};
+  for (const m of condMiss) {
+    if (!groups[m.trigger]) groups[m.trigger] = [];
+    groups[m.trigger].push(m.item);
+  }
+
+  // Copy-all data
+  window._copyAll = { condMiss, alwMiss, blMiss, groups };
+
+  let h = '';
+
+  // // Vehicle card
+  // const fields = [
+  //   ['VIN', info.vin], ['RO Number', info.ro], ['Claim #', info.claim],
+  //   ['Insured', info.insured], ['Policy #', info.policy], ['Date of Loss', info.date],
+  // ].filter(([, v]) => v);
+
+  // if (fields.length) {
+  //   h += `<div class="vehicle-card">
+  //     <div class="card-label">Estimate Details</div>
+  //     <div class="info-grid">
+  //       ${fields.map(([l,v]) => `<div class="info-item"><label>${esc(l)}</label><span>${esc(v.trim())}</span></div>`).join('')}
+  //     </div>
+  //   </div>`; 
+  // }
+
+  // Conditions grid
+  const condLabels = [
+    { key: 'doorRepl',    label: 'Door Replacement' },
+    { key: 'paintTime',   label: 'Paint Time' },
+    { key: 'blend',       label: 'Blend Operations' },
+    { key: 'weldedPanel', label: 'Welded Panel' },
+    { key: 'emblem',      label: 'Emblem / Badge / Decal' },
+    { key: 'glass',       label: 'Glass R&I / Replacement' },
+    { key: 'sublet',      label: 'Sublet Operations' },
+    { key: 'frameTime',   label: 'Frame Time' },
+    { key: 'frontDamage', label: 'Front Damage' },
+    { key: 'lkq',         label: 'LKQ / Recycled Parts' },
+  ];
+
+  h += `<div class="section-title">Detected Conditions</div>
+    <div class="cond-grid">
+    ${condLabels.map(({key, label}) => `
+      <div class="cond-tag ${cond[key] ? 'yes' : 'no'}">
+        <div class="cond-dot"></div><span>${label}</span>
+      </div>`).join('')}
+    </div>`;
+
+  // Summary bar
+  h += `<div class="summary-bar">
+    <div style="font-size:11pt;font-weight:700;">
+      Audit Summary — ${total} item${total !== 1 ? 's' : ''} to review
+    </div>
+    <div class="sum-counts">
+      <div class="sum-count c"><span class="sum-num">${condCount}</span><div class="sum-lbl">Conditionally Missing</div></div>
+      <div class="sum-count w"><span class="sum-num">${alwCount}</span><div class="sum-lbl">Always-Check Not Found</div></div>
+      <div class="sum-count b"><span class="sum-num">${blCount}</span><div class="sum-lbl">Blend Hour Issues</div></div>
+    </div>
+  </div>`;
+
+  // Actions
+  h += `<div class="actions">
+    ${total > 0 ? `<button class="btn btn-primary" onclick="copyAllMissing()">Copy All Missing</button>` : ''}
+    ${total > 0 ? `<button class="btn btn-secondary" id="ppageBtn" onclick="triggerPPageDownload()">&#8681; Download P-Pages</button>` : ''}
+    <button class="btn btn-secondary" onclick="window.print()">Print</button>
+    <button class="btn btn-secondary" onclick="resetApp()">New Estimate</button>
+  </div>
+  <div id="ppageStatus" style="font-size:9pt;color:#6b7280;margin-bottom:12px;display:none;"></div>`;
+
+  if (total === 0) {
+    h += `<div class="all-clear">
+      <div class="all-clear-title">&#10003; No Issues Found</div>
+      <div class="all-clear-sub">All detected conditions have corresponding line items in this estimate.</div>
+    </div>`;
+    return h;
+  }
+
+  // ── Conditionally missing ─────────────────────────────────────────────────
+  if (condCount > 0) {
+    h += `<div class="miss-section critical">
+      <div class="miss-section-title">Conditionally Missing Operations</div>
+      <div class="miss-section-sub">These operations are required based on conditions detected in this estimate.</div>`;
+
+    for (const [trigger, items] of Object.entries(groups)) {
+      h += `<div class="group-header critical">&#8627; Triggered by: ${esc(trigger)}</div>`;
+      for (const item of items) h += noteCard(item);
+    }
+
+    h += `</div>`;
+  }
+
+  // ── Blend issues ──────────────────────────────────────────────────────────
+  if (blCount > 0) {
+    h += `<div class="miss-section blend">
+      <div class="miss-section-title">Blend Hour Issues</div>
+      <div class="miss-section-sub">Each blend panel requires a minimum of 1.5 hours of paint time.</div>
+      <div class="group-header blend">Panels Below Minimum</div>`;
+
+    for (const { panel, note } of blMiss) {
+      h += `<div class="note">
+        <div class="note-body">
+          <div class="note-code blend">Blend</div>
+          <div class="note-title">${esc(panel)}</div>
+          <div class="note-text">${esc(note)}</div>
+        </div>
+      </div>`;
+    }
+
+    h += `</div>`;
+  }
+
+  // ── Always-check not found ────────────────────────────────────────────────
+  if (alwCount > 0) {
+    h += `<div class="miss-section warning">
+      <div class="miss-section-title">Always-Check Items Not Found</div>
+      <div class="miss-section-sub">These items were not detected in this estimate. Review each to confirm whether it applies.</div>
+      <div class="group-header warning">Review for Applicability</div>`;
+
+    for (const item of alwMiss) h += noteCard(item);
+
+    h += `</div>`;
+  }
+
+  return h;
+}
+
+// ── Copy all missing (plain text summary) ────────────────────────────────────
+
+function copyAllMissing() {
+  const d = window._copyAll;
+  if (!d) return;
+  const lines = ['MISSING / REVIEW OPERATIONS', '='.repeat(44), ''];
+  if (d.condMiss.length) {
+    lines.push('CONDITIONALLY MISSING:');
+    for (const [trigger, items] of Object.entries(d.groups)) {
+      lines.push(`  [${trigger}]`);
+      items.forEach(i => lines.push(`    • ${i}`));
+    }
+    lines.push('');
+  }
+  if (d.blMiss.length) {
+    lines.push('BLEND HOUR ISSUES:');
+    d.blMiss.forEach(({panel, note}) => lines.push(`  • ${panel} — ${note}`));
+    lines.push('');
+  }
+  if (d.alwMiss.length) {
+    lines.push('ALWAYS-CHECK NOT FOUND:');
+    d.alwMiss.forEach(i => lines.push(`  • ${i}`));
+  }
+  navigator.clipboard.writeText(lines.join('\n')).then(() => {
+    const btn = document.querySelector('.btn-primary');
+    if (btn) { btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Copy All Missing', 2000); }
+  });
+}
+
+// ── P-Page matching rules ────────────────────────────────────────────────────
+// Each rule maps an item name to a function that tests whether a filename matches.
+
+const P_PAGE_RULES = [
+  { item: 'Mask Jambs',                                  test: f => /a9\.4/i.test(f) || /mask.?jamb/i.test(f) },
+  { item: 'Set Back Wiring',                             test: f => /a91\.2/i.test(f) || /set.?back.?wir/i.test(f) },
+  { item: 'Welder Set Up',                               test: f => /a91\.3/i.test(f) || /welder.?set/i.test(f) },
+  { item: 'Old Urethane Removal',                        test: f => /a91\.5/i.test(f) || /urethane/i.test(f) },
+  { item: 'Flash Time',                                  test: f => /a91\.7/i.test(f) || /flash.?time/i.test(f) },
+  { item: 'De-Nib and Polish',                           test: f => /a93\.5/i.test(f) || /de.?nib/i.test(f) || /nib.*polish/i.test(f) },
+  { item: 'Disconnect/Reconnect Battery',                test: f => /a6[\.\s]/i.test(f) || /disconnect.*battery/i.test(f) || /battery.?cable/i.test(f) },
+  { item: 'OEM Procedure Research Admin Time',           test: f => /a8[\.\s]/i.test(f) || /oem.?procedure/i.test(f) || /procedure.?research/i.test(f) || /subscription/i.test(f) },
+  { item: 'Set-Up & Measure',                            test: f => /a9[\.\s].*set.?up/i.test(f) || /set.?up.*measure/i.test(f) },
+  { item: 'Tram Radiator Support',                       test: f => /a9\.2/i.test(f) || /tram.?rad/i.test(f) },
+  { item: 'Clamp Damage / Pinchweld Repair',             test: f => /a9\.3/i.test(f) || /pinchweld/i.test(f) || /pinch.?weld/i.test(f) },
+  { item: 'Color Tint / Color Match',                    test: f => /a9\.8/i.test(f) || /color.?tint/i.test(f) },
+  { item: 'Let Down Panel',                              test: f => /a9\.9/i.test(f) || /let.?down.?panel/i.test(f) },
+  { item: 'Clean / Inspect / De-Trim Recycled Parts',   test: f => /a90\.2/i.test(f) || /clean.*inspect/i.test(f) || /de.?trim/i.test(f) || /recycled.?part/i.test(f) },
+  { item: 'Feather, Prime & Block',                      test: f => /a90\.4/i.test(f) || /prime.*block/i.test(f) },
+  { item: 'Mask for Primer',                             test: f => /a90\.5/i.test(f) || /mask.?for.?primer/i.test(f) },
+  { item: 'Second Color Set-Up',                         test: f => /a90\.6/i.test(f) || /second.?color/i.test(f) || /two.?tone/i.test(f) },
+  { item: 'Clean for Delivery',                          test: f => /a90\.7/i.test(f) || /clean.?for.?delivery/i.test(f) },
+  { item: 'R&I Air Bag Sensors in Door',                 test: f => /a93\.3/i.test(f) || /electrical.?wiring/i.test(f) || /wiring.?transfer/i.test(f) },
+  { item: 'Repair Weld Zones After Panel Replacement',   test: f => /a90\.9/i.test(f) || /weld.?zone/i.test(f) || /lower.?body/i.test(f) || /rear.?body/i.test(f) },
+  { item: 'Glass Kit',                                   test: f => /a93\.4/i.test(f) || /material.*consumable/i.test(f) || /glass.?kit/i.test(f) },
+  { item: 'Trip Charge / Sublet Stall Time',             test: f => /a9\.5/i.test(f) || /stall.?time/i.test(f) || /trip.?charge/i.test(f) },
+  { item: 'Remove Adhesives',                            test: f => /a91\.1/i.test(f) || /adhesive/i.test(f) },
+  { item: 'Remove Factory Seam Sealer from Adjacent Panels', test: f => /a91\.4/i.test(f) || /seam.?sealer/i.test(f) },
+  { item: 'Rope Glass / Additional Not Included Masking', test: f => /a90\.1/i.test(f) || /rope.?glass/i.test(f) },
+];
+
+// Build a Set of all item names that have missing issues (both conditional + always-check)
+function getAllMissingItemNames() {
+  const d = window._copyAll;
+  if (!d) return new Set();
+  const names = new Set();
+  (d.condMiss || []).forEach(m => names.add(m.item));
+  (d.alwMiss  || []).forEach(n => names.add(n));
+  return names;
+}
+
+// ── P-Page download flow ──────────────────────────────────────────────────────
+
+function triggerPPageDownload() {
+  const input = document.getElementById('ppageInput');
+  input.onchange = handlePPageFiles;
+  input.click();
+}
+
+async function handlePPageFiles(e) {
+  const files = Array.from(e.target.files);
+  if (!files.length) return;
+
+  const btn = document.getElementById('ppageBtn');
+  const statusEl = document.getElementById('ppageStatus');
+  statusEl.style.display = 'block';
+  statusEl.textContent = 'Matching P-pages…';
+  if (btn) { btn.disabled = true; btn.textContent = 'Working…'; }
+
+  const missingItems = getAllMissingItemNames();
+  const zip = new JSZip();
+  const matched = [];
+  const unmatched = [];
+
+  for (const file of files) {
+    const fn = file.name;
+    const rule = P_PAGE_RULES.find(r => missingItems.has(r.item) && r.test(fn));
+    if (rule) {
+      const buf = await file.arrayBuffer();
+      zip.file(fn, buf);
+      matched.push(`${rule.item} → ${fn}`);
+    } else {
+      unmatched.push(fn);
+    }
+  }
+
+  if (!matched.length) {
+    statusEl.style.color = '#dc2626';
+    statusEl.textContent = 'No P-page files matched the flagged missing items. Check that you selected the correct PDFs.';
+    if (btn) { btn.disabled = false; btn.textContent = '↡ Download P-Pages'; }
+    document.getElementById('ppageInput').value = '';
+    return;
+  }
+
+  const ro = (window._roNumber || 'RO').replace(/\s+/g, '-');
+  const zipName = `${ro}-P-Pages.zip`;
+
+  statusEl.style.color = '#374151';
+  statusEl.textContent = `Packaging ${matched.length} P-page${matched.length > 1 ? 's' : ''}…`;
+
+  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = zipName;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  statusEl.style.color = '#16a34a';
+  statusEl.textContent = `Downloaded ${zipName} with ${matched.length} P-page${matched.length > 1 ? 's' : ''}: ${matched.map(m => m.split(' → ')[1]).join(', ')}`;
+  if (btn) { btn.disabled = false; btn.textContent = '↡ Download P-Pages'; }
+  document.getElementById('ppageInput').value = '';
+}
+
+// ── App flow ──────────────────────────────────────────────────────────────────
+
+function showStatus(msg, type='') {
+  const el = document.getElementById('statusDiv');
+  el.className = 'status ' + type;
+  el.innerHTML = type !== 'error' ? `<span class="spinner"></span>${msg}` : msg;
+  el.classList.remove('hidden');
+}
+
+function resetApp() {
+  document.getElementById('resultsSection').classList.add('hidden');
+  document.getElementById('resultsSection').innerHTML = '';
+  document.getElementById('uploadSection').style.display = '';
+  document.getElementById('statusDiv').classList.add('hidden');
+  document.getElementById('fileInput').value = '';
+  document.getElementById('ppageInput').value = '';
+  window._roNumber = 'RO';
+}
+
+async function processFile(file) {
+  if (!file?.name?.toLowerCase().endsWith('.pdf')) {
+    showStatus('Please upload a PDF file.', 'error'); return;
+  }
+  document.getElementById('uploadSection').style.display = 'none';
+  document.getElementById('resultsSection').classList.add('hidden');
+  showStatus('Reading PDF…');
+  try {
+    const text = await extractText(file);
+    showStatus('Analyzing estimate…');
+    await new Promise(r => setTimeout(r, 80));
+    const html = render(text);
+    document.getElementById('statusDiv').classList.add('hidden');
+    const res = document.getElementById('resultsSection');
+    res.innerHTML = html;
+    res.classList.remove('hidden');
+  } catch(e) {
+    showStatus('Error reading PDF: ' + e.message, 'error');
+    document.getElementById('uploadSection').style.display = '';
+    console.error(e);
+  }
+}
+
+// ── Events ────────────────────────────────────────────────────────────────────
+
+const area  = document.getElementById('uploadArea');
+const input = document.getElementById('fileInput');
+area.addEventListener('click',     () => input.click());
+area.addEventListener('dragover',  e  => { e.preventDefault(); area.classList.add('drag-over'); });
+area.addEventListener('dragleave', () => area.classList.remove('drag-over'));
+area.addEventListener('drop',      e  => {
+  e.preventDefault(); area.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
+});
+input.addEventListener('change', e => { if (e.target.files[0]) processFile(e.target.files[0]); });
+</script>
+</body>
+</html>
