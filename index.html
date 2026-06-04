@@ -6,6 +6,8 @@
 <title>CCC One Estimate Auditor</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="estimateParser.js"></script>
+<script src="pdfFullParser.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -552,19 +554,7 @@ function noteCard(itemName, overrideText) {
   </div>`;
 }
 
-// ── PDF extraction ──────────────────────────────────────────────────────────
-
-async function extractText(file) {
-  const buf = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-  const pages = [];
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    pages.push(content.items.map(x => x.str).join(' '));
-  }
-  return pages.join('\n');
-}
+// extractText removed — replaced by extractStructured() in estimateParser.js
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -595,18 +585,27 @@ function vehicleInfo(text) {
 
 // ── Condition detection ──────────────────────────────────────────────────────
 
-function detect(text) {
+function detect(text, lines = []) {
   const doorRepl =
-    /\b(?:Repl|R&R)\b[^\n]{0,35}\b(?:RT|LT)\s+(?:Front\s+|Rear\s+)?Door\b(?!\s+(?:seal|handle|glass|mirror|trim|molding|belt|lower|water|corner|cover|step|sill))/i.test(text)
-    || /\bRepl\b[^\n]{0,35}\b(?:door\s+outer|outer\s+door|door\s+shell|door\s+skin|door\s+asm)/i.test(text);
+    /\b(?:Repl|R&R|Remove\/Replace)\b[^\n]{0,35}\b(?:RT|LT)\s+(?:Front\s+|Rear\s+)?Door\b(?!\s+(?:seal|handle|glass|mirror|trim|molding|belt|lower|water|corner|cover|step|sill))/i.test(text)
+    || /\b(?:Repl|Remove\/Replace)\b[^\n]{0,35}\b(?:door\s+outer|outer\s+door|door\s+shell|door\s+skin|door\s+asm)/i.test(text);
 
+  // paintTime: row-level check first (most reliable), then two text-scan patterns.
+  // "Paint Labor X hrs" appears in older estimate formats; "Labor, Refinish" appears
+  // in Final Bill / newer summary formats.
   const paintTime =
-    /Paint\s+Labor\s+(?:[1-9]\d*\.?\d*|\d+\.[1-9]\d*)\s+hrs/i.test(text);
+    (lines.length > 0 && lines.some(l => l.paintHrs > 0))
+    || /Paint\s+Labor\s+(?:[1-9]\d*\.?\d*|\d+\.[1-9]\d*)\s+hrs/i.test(text)
+    || /Labor[,\s]+Refinish\b[^\n]*[1-9]/i.test(text);
 
-  const blend   = /\bBlnd\b/i.test(text);
-  const weldedPanel = /\bRepl\b[^\n]{0,35}\b(?:quarter\s+panel|rear\s+body|floor\s+pan|floor\s+board|rocker\s+panel|center\s+pillar|b-pillar|a-pillar|c-pillar)/i.test(text);
-  const emblem  = /\bRepl\b[^\n]{0,25}\b(?:emblem|nameplate|badge|decal)\b/i.test(text);
-  const glass   = /\b(?:R&I|Repl|R&R)\b[^\n]{0,30}\b(?:windshield|door\s+glass|quarter\s+glass|back\s+glass|rear\s+glass)\b/i.test(text);
+  // blend: printed format uses "Blend", internal uses "Blnd"
+  const blend = /\bBlnd\b/i.test(text) || lines.some(l => /^blend$/i.test(l.op));
+
+  const weldedPanel = /\bRepl\b[^\n]{0,35}\b(?:quarter\s+panel|rear\s+body|floor\s+pan|floor\s+board|rocker\s+panel|center\s+pillar|b-pillar|a-pillar|c-pillar)/i.test(text)
+    || /remove\/replace[^\n]{0,35}\b(?:quarter\s+panel|rear\s+body|floor\s+pan|rocker\s+panel|center\s+pillar|b-pillar|a-pillar|c-pillar)/i.test(text);
+  const emblem  = /\bRepl\b[^\n]{0,25}\b(?:emblem|nameplate|badge|decal)\b/i.test(text)
+    || /remove\/replace[^\n]{0,25}\b(?:emblem|nameplate|badge|decal)\b/i.test(text);
+  const glass   = /\b(?:R&I|Repl|R&R|Remove\/Replace|Remove\/Install)\b[^\n]{0,30}\b(?:windshield|door\s+glass|quarter\s+glass|back\s+glass|rear\s+glass)\b/i.test(text);
   const sublet  = /\bSubl\b/i.test(text) || /\bSublet\b/i.test(text);
   const frameTime = /Frame\s+Labor\s+[1-9]/i.test(text) || /\bStraighten\b[^\n]{0,20}\bframe\b/i.test(text);
   const frontDamage =
@@ -614,7 +613,12 @@ function detect(text) {
     || /\bgrille\b/i.test(text) || /\bradiator\s+support\b/i.test(text)
     || /Point\s+of\s+Impact[^\n]{0,10}(?:12|Front)/i.test(text);
   const lkq = /\bLKQ\b/.test(text) || /\bRCY\b/.test(text) || /\bUSED\b/.test(text);
-  const repairOnPanel = /\bRpr\b/.test(text) && paintTime;
+
+  // Row-level: "Repair" (printed) or "Rpr" (internal) in op column AND paint hrs > 0
+  // in the exact same row. Falls back to text-scan if the parser returned nothing.
+  const repairOnPanel = lines.length > 0
+    ? lines.some(l => /^(?:repair|rpr)$/i.test(l.op) && l.paintHrs > 0)
+    : /\bRpr\b/.test(text) && paintTime;
 
   return { doorRepl, paintTime, blend, weldedPanel, emblem, glass, sublet, frameTime, frontDamage, lkq, repairOnPanel };
 }
@@ -743,13 +747,13 @@ function blendName(line) {
 
 // ── Render ────────────────────────────────────────────────────────────────────
 
-function render(text) {
+function render(text, lines = []) {
   _noteCounter = 0;
   _noteTexts = {};
 
   const info     = vehicleInfo(text);
   window._roNumber = info.ro || 'RO';
-  const cond     = detect(text);
+  const cond     = detect(text, lines);
   const condMiss = conditionalMissing(text, cond);
   const alwMiss  = alwaysCheckMissing(text);
   const blMiss   = blendHourIssues(text);
@@ -824,6 +828,8 @@ function render(text) {
   // Actions
   h += `<div class="actions">
     ${total > 0 ? `<button class="btn btn-secondary" id="ppageBtn" onclick="triggerPPageDownload()">&#8681; Download P-Pages</button>` : ''}
+    <button class="btn btn-secondary" onclick="downloadEstimateJSON()">&#8681; Export JSON</button>
+    <button class="btn btn-secondary" id="fullJsonBtn" onclick="triggerFullJSON()">&#8681; Parse Full JSON</button>
     <button class="btn btn-secondary" onclick="window.print()">Print</button>
     <button class="btn btn-secondary" onclick="resetApp()">New Estimate</button>
   </div>
@@ -1038,6 +1044,32 @@ function resetApp() {
   window._roNumber = 'RO';
 }
 
+async function triggerFullJSON() {
+  if (!window._lastFile) return;
+  const btn = document.getElementById('fullJsonBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Parsing…'; }
+  try {
+    const data = await parseEstimatePDF(window._lastFile);
+    downloadParsedJSON(data, data.document?.ro_number);
+  } catch(e) {
+    alert('Parse error: ' + e.message);
+    console.error(e);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '↡ Parse Full JSON'; }
+  }
+}
+
+function downloadEstimateJSON() {
+  const d = window._estimateData;
+  if (!d) return;
+  const ro = (window._roNumber || 'estimate').replace(/\s+/g, '-');
+  const blob = new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `${ro}-parsed.json`; a.click();
+  URL.revokeObjectURL(url);
+}
+
 async function processFile(file) {
   if (!file?.name?.toLowerCase().endsWith('.pdf')) {
     showStatus('Please upload a PDF file.', 'error'); return;
@@ -1046,10 +1078,12 @@ async function processFile(file) {
   document.getElementById('resultsSection').classList.add('hidden');
   showStatus('Reading PDF…');
   try {
-    const text = await extractText(file);
+    const { rawText, lines, cols } = await extractStructured(file);
+    window._estimateData = { cols, lines };
+    window._lastFile = file;
     showStatus('Analyzing estimate…');
     await new Promise(r => setTimeout(r, 80));
-    const html = render(text);
+    const html = render(rawText, lines);
     document.getElementById('statusDiv').classList.add('hidden');
     const res = document.getElementById('resultsSection');
     res.innerHTML = html;
