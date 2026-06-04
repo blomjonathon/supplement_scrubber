@@ -177,6 +177,25 @@ body {
 .all-clear-title { font-size: 16pt; font-weight: 700; color: #16a34a; margin-bottom: 6px; }
 .all-clear-sub { font-size: 10pt; color: #6b7280; }
 
+.checklist-section { margin-top: 40px; border-top: 2.5px solid #2563eb; padding-top: 20px; }
+.checklist-section-title { font-size: 14pt; font-weight: 700; color: #1a1a2e; margin-bottom: 16px; }
+.checklist-group { margin-bottom: 20px; }
+.checklist-group-title { font-size: 9pt; font-weight: 700; color: #2563eb; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; font-family: 'Courier New', monospace; }
+.checklist-items { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; }
+.checklist-item { display: flex; align-items: flex-start; gap: 8px; font-size: 9.5pt; color: #374151; line-height: 1.5; padding: 3px 0; cursor: pointer; user-select: none; }
+.checklist-item input[type="checkbox"] { appearance: none; -webkit-appearance: none; width: 14px; height: 14px; min-width: 14px; border: 1.5px solid #9ca3af; border-radius: 3px; margin-top: 2px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s, border-color 0.15s; }
+.checklist-item input[type="checkbox"]:checked { background: #2563eb; border-color: #2563eb; }
+.checklist-item input[type="checkbox"]:checked::after { content: '✓'; color: white; font-size: 9px; font-weight: 700; display: block; text-align: center; line-height: 14px; }
+.checklist-item.checked-item span { color: #9ca3af; text-decoration: line-through; }
+/* .checklist-item.full-width { grid-column: 1 / -1; } */
+.checklist-link-btn {
+  padding: 3px 9px; font-size: 8pt; font-weight: 600;
+  color: #2563eb; background: #eff6ff; border: 1px solid #bfdbfe;
+  border-radius: 4px; text-decoration: none; white-space: nowrap;
+  flex-shrink: 0; align-self: center;
+}
+.checklist-link-btn:hover { background: #dbeafe; }
+
 @media print {
   body { background: white; padding: 0; }
   .page { box-shadow: none; width: 100%; padding: 0.5in; }
@@ -184,6 +203,7 @@ body {
   .status { display: none; }
   .note { break-inside: avoid; }
   .copy-btn { display: none; }
+  .checklist-link-btn { display: none; }
 }
 </style>
 </head>
@@ -211,6 +231,96 @@ body {
 
   <div id="statusDiv" class="status hidden"></div>
   <div id="resultsSection" class="hidden"></div>
+
+  <div class="checklist-section">
+    <div class="checklist-section-title">Supplement Checklist</div>
+
+    <div class="checklist-group">
+      <div class="checklist-group-title">Required Research</div>
+      <div class="checklist-items">
+        <label class="checklist-item"><input type="checkbox"><span>OEM Repair Procedures (Alldata)</span></label>
+        <div class="checklist-item full-width" style="justify-content:space-between;align-items:center;">
+          <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;user-select:none;">
+            <input type="checkbox"><span>Necessary Calibrations (REV ADAS)</span>
+          </label>
+          <div style="display:flex;gap:6px;flex-shrink:0;">
+            <a href="https://cloud-us.autel.com/fileManagement/reportManagement" target="_blank" class="checklist-link-btn" onclick="event.stopPropagation()">Autel Reports</a>
+            <a href="https://app.revvadas.com/reports/new" target="_blank" class="checklist-link-btn" onclick="event.stopPropagation()">REV ADAS</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="checklist-group">
+      <div class="checklist-group-title">Things to Check / Confirm</div>
+      <div class="checklist-items">
+        <label class="checklist-item"><input type="checkbox"><span>Rates / Sales Tax</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>Apply Rates Retroactively</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>Refinish Adjustments</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>Hood or Trunk Hinges Damaged?</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>Missing Parts (Compare to Opposing Side)</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>V.I.N. &amp; Hood Labels</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>Non-reusable glass</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>Alternate / Non-OEM Part Availability (Obtain No Quotes)</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>Confirm Material Costs</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>R&amp;I Front Radar</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>R&amp;I Rear Bumper Park Sensors</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>R&amp;I Air Bag Sensors in Replacement Doors</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>R&amp;I/Drop Body Weatherstrips for Headliner Removal</span></label>
+      </div>
+    </div>
+
+    <div class="checklist-group">
+      <div class="checklist-group-title">Additional Line Items</div>
+      <div class="checklist-items">
+        <label class="checklist-item"><input type="checkbox"><span>a91.9 &ndash; 3 Stage</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>a92 &ndash; Tow Bill</span></label>
+        <label class="checklist-item full-width"><input type="checkbox"><span>a2&ndash;a4.01 &ndash; Standard Procedures (Flex Additive, Corrosion Protection, Car Cover, Hazardous Waste, Clean &amp; Re-tape)</span></label>
+        <label class="checklist-item full-width"><input type="checkbox"><span>a92.0&ndash;a92.1 &ndash; Wheel Damage, Wheel Alignment, Mount and Balance</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>a92.2&ndash;a92.5 &ndash; Fluids (Washer Fluid, OEM Coolant, Etc.)</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>a92.9 &amp; a93 &ndash; Auto Up/Down Window Initialization</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>a93.1 &ndash; Test Fit/Align Recycled &amp; Non-OEM Parts</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>a93.2 &ndash; Pull for Access</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>a93.3 &ndash; Transfer Wiring</span></label>
+      </div>
+    </div>
+
+    <div class="checklist-group">
+      <div class="checklist-group-title">Review</div>
+      <div class="checklist-items">
+        <label class="checklist-item"><input type="checkbox"><span>Review Part Invoices (Confirm all Parts are Accounted for)</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>Review Technician Repair Photos</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>Review Refinish Exclusions</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>Review Body Exclusions</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>Review Applicable P-Pages</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>Remove Material Cap (a92.8)</span></label>
+      </div>
+    </div>
+
+    <div class="checklist-group">
+      <div class="checklist-group-title">Excluded Common Body Operations</div>
+      <div class="checklist-items">
+        <label class="checklist-item"><input type="checkbox"><span>Sail Rail Refinish / Blend</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>Rocker Panel Refinish / Blend</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>Tow Hook Cover Refinish / Blend</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>Prep Raw Plastic</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>Chip Guard / Rock Guard</span></label>
+      </div>
+    </div>
+
+    <div class="checklist-group">
+      <div class="checklist-group-title">Documents to Create</div>
+      <div class="checklist-items">
+        <label class="checklist-item"><input type="checkbox"><span>a93.4 &ndash; Not Included Consumables / Dry Goods Invoice</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>a93.5 &ndash; De/Nib &amp; Polish P-Page</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>Clear Bra Invoice</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>Scan Invoice (REV ADAS) &ndash; Add Test Drive</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>a92.6 &ndash; Glass Sublet Invoice</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>a92.7 &ndash; Glass Kit</span></label>
+        <label class="checklist-item"><input type="checkbox"><span>R1234YF A/C Evacuate &amp; Recharge Invoice</span></label>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -504,8 +614,9 @@ function detect(text) {
     || /\bgrille\b/i.test(text) || /\bradiator\s+support\b/i.test(text)
     || /Point\s+of\s+Impact[^\n]{0,10}(?:12|Front)/i.test(text);
   const lkq = /\bLKQ\b/.test(text) || /\bRCY\b/.test(text) || /\bUSED\b/.test(text);
+  const repairOnPanel = /\bRpr\b/.test(text) && paintTime;
 
-  return { doorRepl, paintTime, blend, weldedPanel, emblem, glass, sublet, frameTime, frontDamage, lkq };
+  return { doorRepl, paintTime, blend, weldedPanel, emblem, glass, sublet, frameTime, frontDamage, lkq, repairOnPanel };
 }
 
 // ── Rules engine ─────────────────────────────────────────────────────────────
@@ -521,11 +632,14 @@ function conditionalMissing(text, cond) {
       missing.push({ trigger: 'Door Replacement', item: 'R&I Air Bag Sensors in Door' });
   }
 
-  if (cond.paintTime) {
+  if (cond.repairOnPanel) {
     if (!p(['feather', 'f,p&b', 'f/p/b', 'prime & block', 'prime and block']))
-      missing.push({ trigger: 'Paint Time Present', item: 'Feather, Prime & Block' });
+      missing.push({ trigger: 'Repair on Painted Panel', item: 'Feather, Prime & Block' });
     if (!p(['mask for primer', 'mask primer', 'mask/prime', 'mask & prime']))
-      missing.push({ trigger: 'Paint Time Present', item: 'Mask for Primer' });
+      missing.push({ trigger: 'Repair on Painted Panel', item: 'Mask for Primer' });
+  }
+
+  if (cond.paintTime) {
     if (!p(['color tint', 'color match', 'tint/color']))
       missing.push({ trigger: 'Paint Time Present', item: 'Color Tint / Color Match' });
     if (!p(['let down panel', 'letdown panel']))
@@ -684,6 +798,7 @@ function render(text) {
     { key: 'frameTime',   label: 'Frame Time' },
     { key: 'frontDamage', label: 'Front Damage' },
     { key: 'lkq',         label: 'LKQ / Recycled Parts' },
+    { key: 'repairOnPanel', label: 'Repair on Panel' },
   ];
 
   h += `<div class="section-title">Detected Conditions</div>
@@ -708,7 +823,6 @@ function render(text) {
 
   // Actions
   h += `<div class="actions">
-    ${total > 0 ? `<button class="btn btn-primary" onclick="copyAllMissing()">Copy All Missing</button>` : ''}
     ${total > 0 ? `<button class="btn btn-secondary" id="ppageBtn" onclick="triggerPPageDownload()">&#8681; Download P-Pages</button>` : ''}
     <button class="btn btn-secondary" onclick="window.print()">Print</button>
     <button class="btn btn-secondary" onclick="resetApp()">New Estimate</button>
@@ -959,6 +1073,12 @@ area.addEventListener('drop',      e  => {
   if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
 });
 input.addEventListener('change', e => { if (e.target.files[0]) processFile(e.target.files[0]); });
+
+document.querySelectorAll('.checklist-item input[type="checkbox"]').forEach(cb => {
+  cb.addEventListener('change', () => {
+    cb.closest('.checklist-item').classList.toggle('checked-item', cb.checked);
+  });
+});
 </script>
 </body>
 </html>
