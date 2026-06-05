@@ -848,7 +848,7 @@ function getPresentPPageItems(text, cond) {
 }
 
 // Panels we buff/denib: fenders, doors, hoods, quarter panels, aperture panels,
-// cabs, tailgates, and outer panels on box sides. Nothing structural.
+// cabs, tailgates, box side outer panels, and side panels. Nothing structural.
 function _isBuffablePanel(text) {
   if (!text) return false;
   const t = text.toLowerCase();
@@ -1703,7 +1703,7 @@ async function triggerDenibCalc() {
     }
 
     if (!panels.length) {
-      alert('No buffable panels found (only fenders, doors, hoods, quarter panels, aperture panels, cabs, tailgates, and box side outer panels are included).');
+      alert('No buffable panels found (only fenders, doors, hoods, quarter panels, aperture panels, cabs, tailgates, box side outer panels, and side panels are included).');
       return;
     }
 
