@@ -862,7 +862,8 @@ function _isBuffablePanel(text) {
     /\bcab\b/.test(t)                              ||
     /tail[\s\-]*gate/.test(t)                      ||
     /box[\s\-]*side/.test(t)                       ||
-    /outer[\s\-]*panel/.test(t)
+    /outer[\s\-]*panel/.test(t)                    ||
+    /\bside[\s\-]*panel\b/.test(t)
   );
 }
 
@@ -1255,7 +1256,11 @@ async function handleInvoiceFiles(e) {
 
   let estimateData;
   try {
-    estimateData = await parseEstimatePDF(window._lastFile);
+    if (!window._parsedEstimate) {
+      setStatus('Parsing estimate…');
+      window._parsedEstimate = await parseEstimatePDF(window._lastFile);
+    }
+    estimateData = window._parsedEstimate;
   } catch (err) {
     resultsDiv.innerHTML = `<div class="inv-results"><div style="color:#dc2626;font-size:9pt;">Could not parse estimate: ${esc(err.message)}</div></div>`;
     return;
@@ -1265,6 +1270,7 @@ async function handleInvoiceFiles(e) {
   const estimateParts = allItems
     .filter(it => !it.section_header && it.extended_price > 0)
     .map(it => ({ line: it.line, description: it.description || '', partType: it.part_type || '', price: it.extended_price }));
+  console.log('[Estimate] Parts loaded for matching:', estimateParts.map(p => `L${p.line} ${p.description} $${p.price}`));
 
   if (!estimateParts.length) {
     const totalLines = allItems.filter(it => !it.section_header).length;
@@ -1296,6 +1302,7 @@ async function handleInvoiceFiles(e) {
     try {
       setStatus(`Reading invoice ${fi + 1} of ${files.length}: ${file.name}…`);
       const lines = await extractInvoiceRows(file, ocrWorker, (msg) => setStatus(msg));
+      console.log(`[Invoice] ${file.name} — extracted ${lines.length} rows:`, lines);
       invoiceLineData.push({ lines, filename: file.name });
     } catch (_) { /* skip unreadable file */ }
   }
@@ -1309,6 +1316,8 @@ async function handleInvoiceFiles(e) {
 
   setStatus('Matching prices…');
   const pool    = buildInvoicePricePool(invoiceLineData);
+  console.log('[Invoice] Price pool extracted from invoices:', pool);
+  console.log('[Invoice] Estimate parts to match:', estimateParts);
   const results = matchInvoiceParts(estimateParts, pool);
   resultsDiv.innerHTML = renderInvoiceResults(results, files.length, estimateParts, pool);
 }
@@ -1344,6 +1353,7 @@ async function extractInvoiceRows(file, ocrWorker, onProgress) {
       canvas.height = viewport.height;
       await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
       const { data: { text } } = await ocrWorker.recognize(canvas);
+      console.log(`[OCR] ${file.name} — page ${p} raw text:`, text);
       rows.push(...text.split(/\n/).map(l => l.trim()).filter(l => l.length > 0));
     } else {
       // ── Text-layer path ─────────────────────────────────────────────────────
@@ -1365,24 +1375,54 @@ async function extractInvoiceRows(file, ocrWorker, onProgress) {
   return rows;
 }
 
-// Scan every line of every invoice for anything that looks like a price (X.XX).
-// Deduplicates within each line so LIST and AMOUNT don't both appear when equal.
-// The matching is purely numeric — if a price is on the estimate and in the invoices, it matches.
+// Extracts the extended LIST price from each part row on each invoice.
+// Rules:
+//   - Part rows have at least 2 price columns (LIST … AMOUNT); single-price lines are totals/headers → skip.
+//   - Lines containing total/summary keywords are skipped entirely.
+//   - If the rightmost price (AMOUNT column) is $0.00 the part is on order / not yet received → skip.
+//   - The SHIP quantity (first standalone integer before the price columns) is multiplied by the LIST
+//     price to produce the extended list price, which is what the estimate's extended_price field uses.
 function buildInvoicePricePool(invoiceLineData) {
   const pool = [];
-  const PRICE_RE = /(?<!\d)(\d{1,3}(?:,\d{3})*\.\d{2})(?!\d)/g;
+  const PRICE_RE     = /(?<!\d)(\d+(?:,\d{3})*\.\d{2})(?!\d)/g;
+  const FIRST_PRICE  = /(?<!\d)\d+(?:,\d{3})*\.\d{2}(?!\d)/;        // non-global for .search()
+  const TOTAL_RE     = /\b(subtotal|freight|tax|total|sales\s*tax|pay\s*this|sublet)\b/i;
 
   for (const { lines, filename } of invoiceLineData) {
     for (const line of lines) {
-      const seenOnLine = new Set();
+      if (TOTAL_RE.test(line)) continue;
+
+      // Collect all price-like values left-to-right
+      const prices = [];
       let m;
       PRICE_RE.lastIndex = 0;
       while ((m = PRICE_RE.exec(line)) !== null) {
-        const val = parseFloat(m[1].replace(/,/g, ''));
-        if (val >= 1.00 && !seenOnLine.has(val)) {
-          seenOnLine.add(val);
-          pool.push({ amount: val, context: line.slice(0, 120), source: filename });
-        }
+        prices.push(parseFloat(m[1].replace(/,/g, '')));
+      }
+
+      // Need at least LIST + AMOUNT; single-price lines are totals or headers
+      if (prices.length < 2) continue;
+
+      const listPrice     = prices[0];                   // leftmost  = LIST column
+      const chargedAmount = prices[prices.length - 1];  // rightmost = AMOUNT column
+
+      if (chargedAmount === 0) {
+        console.log(`[Invoice] ZEROED OUT (on order, skipped): "${line.trim().slice(0, 100)}" — ${filename}`);
+        continue;
+      }
+
+      // SHIP quantity: first standalone 1–2 digit integer that appears before the price columns.
+      // Dealer invoices put the shipped qty as the leftmost column on each part row.
+      const beforePrices = line.slice(0, line.search(FIRST_PRICE));
+      const qtyMatch     = beforePrices.match(/\b(\d{1,2})\b/);
+      const qty          = qtyMatch ? parseInt(qtyMatch[1], 10) : 1;
+
+      // Extended list = qty × unit list — matches the estimate's extended_price field
+      const extendedList = qty * listPrice;
+
+      if (extendedList >= 1.00) {
+        console.log(`[Invoice] LIST ${listPrice} × qty ${qty} = ${extendedList.toFixed(2)} (charged: ${chargedAmount}) — "${line.trim().slice(0, 80)}" — ${filename}`);
+        pool.push({ amount: extendedList, context: line.slice(0, 120), source: filename });
       }
     }
   }
@@ -1572,6 +1612,7 @@ function resetApp() {
   document.getElementById('fileInput').value = '';
   window._roNumber = 'RO';
   window._ppageOnEstimate = null;
+  window._parsedEstimate = null;
   _roOutputFolder = null;
   const invEl = document.getElementById('invoiceResults');
   if (invEl) invEl.innerHTML = '';
@@ -1583,6 +1624,7 @@ async function triggerFullJSON() {
   if (btn) { btn.disabled = true; btn.textContent = 'Parsing…'; }
   try {
     const data = await parseEstimatePDF(window._lastFile);
+    window._parsedEstimate = data;
     downloadParsedJSON(data, data.document?.ro_number);
   } catch(e) {
     alert('Parse error: ' + e.message);
