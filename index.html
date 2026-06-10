@@ -1711,6 +1711,8 @@ async function triggerDenibCalc() {
       if (/^overlap\b/i.test(item.description || ''))     continue;
       if (/clear\s*coat/i.test(item.description || ''))  continue;
       if (/interior|jamb/i.test(item.description || '')) continue;
+      if (/color[\s\-]*tint|color[\s\-]*match|tint[\s\/]color/i.test(item.description || '')) continue;
+      if (/let[\s\-]*down[\s\-]*panel|letdown[\s\-]*panel/i.test(item.description || '')) continue;
       if (!_isBuffablePanel(item.description) && !_isBuffablePanel(currentSection)) continue;
 
       const label   = _panelLabel(item.description, currentSection, item.operation);
