@@ -700,7 +700,9 @@ function detect(text, lines = []) {
     /\bfront\s+bumper\b/i.test(text) || /\bheadlamp\b/i.test(text)
     || /\bgrille\b/i.test(text) || /\bradiator\s+support\b/i.test(text)
     || /Point\s+of\s+Impact[^\n]{0,10}(?:12|Front)/i.test(text);
-  const lkq = /\bLKQ\b/.test(text) || /\bRCY\b/.test(text) || /\bUSED\b/.test(text);
+  // Only explicit terms trigger LKQ/recycled detection.
+  // "Other" part type does NOT mean used/recycled — only LKQ, RCY, USED, or "recycled" spelled out.
+  const lkq = /\bLKQ\b/i.test(text) || /\bRCY\b/i.test(text) || /\bUSED\b/i.test(text) || /\brecycled\b/i.test(text);
 
   // Row-level: "Repair" (printed) or "Rpr" (internal) in op column AND paint hrs > 0
   // in the exact same row. Falls back to text-scan if the parser returned nothing.
@@ -1713,6 +1715,7 @@ async function triggerDenibCalc() {
       if (/interior|jamb/i.test(item.description || '')) continue;
       if (/color[\s\-]*tint|color[\s\-]*match|tint[\s\/]color/i.test(item.description || '')) continue;
       if (/let[\s\-]*down[\s\-]*panel|letdown[\s\-]*panel/i.test(item.description || '')) continue;
+      if (/\bedge\b/i.test(item.description || '')) continue;
       if (!_isBuffablePanel(item.description) && !_isBuffablePanel(currentSection)) continue;
 
       const label   = _panelLabel(item.description, currentSection, item.operation);
