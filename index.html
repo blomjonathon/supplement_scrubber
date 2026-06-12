@@ -651,6 +651,13 @@ function has(text, keywords) {
   return keywords.some(k => typeof k === 'string' ? t.includes(k.toLowerCase()) : k.test(text));
 }
 
+function hasOnSameLine(text, words) {
+  return text.split('\n').some(line => {
+    const l = line.toLowerCase();
+    return words.every(w => l.includes(w.toLowerCase()));
+  });
+}
+
 function esc(s) {
   return String(s || '')
     .replace(/&/g,'&amp;').replace(/</g,'&lt;')
@@ -674,9 +681,7 @@ function vehicleInfo(text) {
 // ── Condition detection ──────────────────────────────────────────────────────
 
 function detect(text, lines = []) {
-  const doorRepl =
-    /\b(?:Repl|R&R|Remove\/Replace)\b[^\n]{0,35}\b(?:RT|LT)\s+(?:Front\s+|Rear\s+)?Door\b(?!\s+(?:seal|handle|glass|mirror|trim|molding|belt|lower|water|corner|cover|step|sill))/i.test(text)
-    || /\b(?:Repl|Remove\/Replace)\b[^\n]{0,35}\b(?:door\s+outer|outer\s+door|door\s+shell|door\s+skin|door\s+asm)/i.test(text);
+  const doorRepl = /\bdoor[\s\-]*shell\b/i.test(text);
 
   // paintTime: row-level check first (most reliable), then two text-scan patterns.
   // "Paint Labor X hrs" appears in older estimate formats; "Labor, Refinish" appears
@@ -727,7 +732,7 @@ function conditionalMissing(text, cond) {
   }
 
   if (cond.repairOnPanel) {
-    if (!p(['feather', 'f,p&b', 'f/p/b', 'prime & block', 'prime and block']))
+    if (!hasOnSameLine(text, ['feather', 'prime', 'block']) && !p(['f,p&b', 'f/p/b']))
       missing.push({ trigger: 'Repair on Painted Panel', item: 'Feather, Prime & Block' });
     if (!p(['mask for primer', 'mask primer', 'mask/prime', 'mask & prime']))
       missing.push({ trigger: 'Repair on Painted Panel', item: 'Mask for Primer' });
@@ -825,7 +830,7 @@ function getPresentPPageItems(text, cond) {
     if (p(['air bag sensor', 'airbag sensor', 'r&i side impact', 'side impact sensor'])) present.add('R&I Air Bag Sensors in Door');
   }
   if (cond.repairOnPanel) {
-    if (p(['feather', 'f,p&b', 'f/p/b', 'prime & block', 'prime and block'])) present.add('Feather, Prime & Block');
+    if (hasOnSameLine(text, ['feather', 'prime', 'block']) || p(['f,p&b', 'f/p/b'])) present.add('Feather, Prime & Block');
     if (p(['mask for primer', 'mask primer', 'mask/prime', 'mask & prime'])) present.add('Mask for Primer');
   }
   if (cond.paintTime) {
