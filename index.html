@@ -681,7 +681,7 @@ function vehicleInfo(text) {
 // ── Condition detection ──────────────────────────────────────────────────────
 
 function detect(text, lines = []) {
-  const doorRepl = /\bdoor[\s\-]*shell\b/i.test(text);
+  const doorRepl = /\b(?:Repl|R&R|Remove\/Replace)\b[^\n]{0,60}\bdoor[\s\-]*shell\b/i.test(text);
 
   // paintTime: row-level check first (most reliable), then two text-scan patterns.
   // "Paint Labor X hrs" appears in older estimate formats; "Labor, Refinish" appears
