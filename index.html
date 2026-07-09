@@ -274,7 +274,10 @@ details.inv-collapsible[open] > summary .inv-section-title::before { content: '�
       <div class="doc-title">Estimate Auditor</div>
       <div class="doc-sub">CCC One — Missing Operations Checker</div>
     </div>
-    <div style="font-size:9pt;color:#9ca3af;text-align:right;">New Central Auto</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button onclick="openLineNotes()" style="padding:6px 14px;font-size:8.5pt;font-weight:600;color:#2563eb;background:#eff6ff;border:1px solid #bfdbfe;border-radius:5px;cursor:pointer;font-family:inherit;">&#128203; All Line Notes</button>
+      <div style="font-size:9pt;color:#9ca3af;">New Central Auto</div>
+    </div>
   </div>
 
 
@@ -1636,6 +1639,141 @@ function showStatus(msg, type='') {
   el.className = 'status ' + type;
   el.innerHTML = type !== 'error' ? `<span class="spinner"></span>${msg}` : msg;
   el.classList.remove('hidden');
+}
+
+function openLineNotes() {
+  const notes = [
+    ["a4.5","Re-Key Fee (Match Insurance Initial Estimate)","This operation covers the labor required to manually input and mirror the insurer's initial estimate layout into our management system. By matching line items and structure exactly, we provide your desk auditors with a transparent, apples-to-apples view that drastically reduces review time and speeds up subsequent supplement approvals."],
+    ["a5","Pre-wash Vehicle for Inspection","This operation is required to remove road grime, dirt, and debris from the vehicle prior to the blueprinting process. A clean surface is mandatory to accurately detect hidden micro-cracks, hairline fractures, and subtle paint transfers that are otherwise invisible, ensuring a complete and accurate initial supplement that prevents costly delays later."],
+    ["a6","Disconnect/Reconnect Battery","This operation isolates the vehicle's electrical system before structural, welding, or component removal work begins. Disconnecting the battery protects sensitive onboard microprocessors from destructive power surges, prevents accidental airbag deployment, and safeguards the battery from complete discharge while doors, trunks, and interior modules remain open during extended repair stages."],
+    ["a8","OEM Procedure Research Admin Time","This operation covers the highly technical administrative labor required to retrieve, review, and document the vehicle manufacturer's specific (OEM) repair mandates for this exact year, make, model, and trim. Because modern vehicle safety structures rely on specific steel types, sectioning locations, and one-time-use components, this research is a mandatory compliance step to ensure the vehicle is restored to original crashworthiness safety standards."],
+    ["a9","Set-Up & Measure","This operation covers the frame labor required to mount, level, and rigidly anchor the vehicle's unibody or frame to a specialized structural alignment machine. Once anchored, precision electronic measuring systems are used to map the vehicle's current dimensions against factory blueprints. This highly technical process is required to diagnose structural deviations and establish the rigid foundation necessary to safely execute subsequent corrective frame pulls."],
+    ["a9.1","Body Pull / Sheetmetal Pull","This operation covers the mechanical pulling required to reverse the deep impact folds and high-tension creases within the metal panel. This heavy rough-shaping process must be completed first to relieve the trapped structural stress in the metal and restore its basic contours. Only after the panel's primary shape is structurally realigned can the technician perform the precision metal finishing, smoothing, and contouring work required for paint preparation."],
+    ["a9.2","Tram Radiator Support","This operation covers the precision measurement of the radiator support assembly using a specialized tram gauge to verify its exact height, width, and diagonal dimensions against factory engineering blueprints. Because the radiator support serves as the structural foundation for the entire front-end cooling package, headlamps, and advanced driver-assist radar sensors, it must be measured in a three-dimensional matrix. This ensures all critical safety and cooling components align to millimeter-level factory tolerances before reassembly."],
+    ["a9.3","Clamp Damage / Pinchweld Repair","This operation covers the mandatory labor required to repair and re-seal the vehicle's bottom mounting flanges (pinchwelds) after a structural correction. To safely perform the heavy hydraulic frame pulling required for this vehicle, the chassis must be locked to the frame machine using hardened steel anchoring clamps. The immense pressure required to hold the car in place naturally scars the factory metal, coating, and texture. This operation straightens the clamped metal flanges and restores the factory anti-corrosion sealants to prevent future rust and structural degradation."],
+    ["a9.4","Mask Jambs","This operation covers the specialized labor and materials required to seal the interior door openings, pillar jambs, and passenger cabin before painting. Because factory tolerances require painting the exterior panels while doors or lids are closed or slightly ajar, specialized foam tracking and masking tapes must be applied inside the gaps. This creates an airtight seal that prevents airborne paint overspray from drifting into the vehicle's interior, onto leather upholstery, or onto clean factory-finished inner door frames."],
+    ["a9.5 / a90","Trip Charge / Sublet Stall Time","This operation covers the labor required to safely transport the vehicle to a specialized off-site facility and back. This is necessary to complete advanced mechanical work, wheel alignments, or dealer-specific safety calibrations that require equipment not available inside a standard collision repair shop."],
+    ["a9.6","Clear Bra Removal","This operation covers the labor and chemical process required to peel back and safely remove the existing clear paint protection film from the damaged panel. This must be completed before any metal repair or paint preparation can begin. It includes carefully dissolving the hardened factory adhesives beneath the film to ensure a completely clean, residue-free surface that guarantees proper new paint adhesion."],
+    ["a9.7","Seatbelt Inspection","This operation covers the mandatory technical inspection of all seatbelts and anchoring points following an impact, per vehicle manufacturer safety guidelines. Because seatbelt webbing and internal retractor mechanisms are engineered to stretch and lock to absorb crash energy, they can suffer permanent, invisible structural damage during a collision. This physical inspection verifies the restraint system functions perfectly to ensure occupant safety before the vehicle returns to the road."],
+    ["a9.8","Color Tint","This operation covers the highly precise chemical adjustment and manual blending of paint toners required to match the vehicle's current, real-world finish. While factory paint codes provide a starting formula, a vehicle's actual color shifts due to assembly plant variations, age, and sun exposure. The painter must manually mix and alter the formula to achieve an exact visual match before application, preventing a mismatched patch effect."],
+    ["a9.9","Let Down Panel","This operation covers the physical labor and materials required to create a physical test panel (sprayout card) before applying paint to the vehicle. For multi-layer or complex metallic colors, the painter must spray multiple test panels with varying layers of color and clear coat. This is the only technical method to accurately verify how the metallic particles layout and ensure the new paint perfectly matches the vehicle's existing finish under different lighting conditions."],
+    ["a90","Sublet Stall Time (A/C, Scans & Clear Bra)","This operation covers the physical stall space, vehicle lift, high-voltage clean-power supply, and specialized safety ventilation required while an outside vendor occupies a service bay. During procedures like air conditioning recharging, computerized diagnostic scanning, or paint protection film (PPF) application, a dedicated production bay is entirely tied up and cannot be used by our team. This line covers the physical footprint and utility resources required to host these specialized technical operations on-site."],
+    ["a90.1","Rope Glass / Additional Not Included Masking","This operation covers the specialized labor and materials required to thread a flexible cord (rope) beneath the weatherstripping of permanently installed glass panels (like windshields or quarter glass). By physically lifting the rubber seal away from the metal body, the painter can apply paint completely underneath the lip of the molding. This is the only technical method that prevents a visible paint edge, eliminates the risk of the new paint peeling later, and ensures the factory weatherproofing seal remains unbroken."],
+    ["a90.2","Clean / Inspect / De-Trim Recycled Parts","This operation covers the labor required to process a recycled salvage component before it can be used. Unlike a new factory part, a recycled assembly arrives with old dirt, road grime, broken glass, and leftover donor-vehicle trim pieces (molding, handles, wiring, and brackets). This labor is required to thoroughly clean the assembly, inspect it for hidden transport damage, and completely strip away all old trim components. Stripping the panel to a bare shell is mandatory to allow for proper sanding, surface preparation, and seamless paint application."],
+    ["a90.3","Interior / Backside Refinishing","This operation covers the labor, materials, and paint application required to seal and protect the hidden inner surfaces (backsides) of replacement panels and structural pinchweld anchoring areas. Standard paint time only covers the highly visible exterior faces of a vehicle. This separate operation ensures that the raw, exposed steel on the back edges and welded flanges receives identical primer and paint protection to match factory specifications, completely blocking moisture and preventing premature rust or structural failure from the inside out."],
+    ["a90.4","Feather, Prime & Block","This operation covers the highly meticulous multi-stage process required to restore a repaired panel to a perfectly flat, factory-smooth surface before final paint is applied. When a panel is repaired, a micro-step exists between the repaired zone and the original paint. This process expands (feathers) that edge, applies a specialized high-build primer to fill the micro-grooves, and manually sands the area using a sanding block to verify the structural contour is flawless. Without this operation, the new paint will sink, revealing unsightly sand scratches and surface distortions."],
+    ["a90.5","Mask for Primer","This operation covers the initial, separate labor and materials required to protect the vehicle before the liquid primer coating is applied. High-build filler primer is a heavy, fast-drying chemical that creates a massive amount of airborne overspray and fine dust during application. This step completely seals off the rest of the vehicle, engine bay, and adjacent glass to ensure this sticky primer residue does not contaminate clean factory panels, avoiding surface damage before the final paint process begins."],
+    ["a90.6","Second Color Set-Up","This operation covers the separate labor and material setup required when a vehicle features two distinct colors (such as a two-tone roof, accent-colored mirror caps, or contrasting lower trim panels). Because a paint spray gun can only atomize one color chemical profile at a time, the painter must entirely clean the spray equipment, purge lines, mix an entirely different paint chemistry, and re-mask the vehicle to isolate the second zone. This setup process must be executed for each independent color applied."],
+    ["a90.7","Clean for Delivery","This operation covers the mandatory cleaning of the vehicle before it is returned to the owner. The repair process fills the air with fine metal dust, sanding residue, and chemical odors. This labor thoroughly cleans the interior and exterior to ensure no abrasive dust, sharp repair debris, or chemical residues are left behind to irritate the driver or passengers."],
+    ["a90.8","Insurance Claim Admin","This operation covers the extensive administrative labor required to build, format, and upload the highly detailed repair file required by the insurance company. Historically, insurance adjusters visited the shop to physically document the damage and write the files. Today, insurers require the repair facility to handle 100% of this workload. This charge covers the administrative time spent capturing line-of-sight digital photo evidence, indexing structural repair logs, inputting data line-by-line into the insurer's portal, and managing the electronic documentation pipeline necessary to secure claim approval."],
+    ["a90.9","Repair Weld Zones After Panel Replacement","This operation covers the extra sanding and smoothing needed to make a welded area ready for paint. According to national repair databases, a metal technician is only required to smooth down a welded seam using rough sandpaper (150-grit). This leaves the metal very rough and scratchy. If we paint directly over it, the paint will sink into the deep scratches, wrinkle, and eventually peel off. This step covers the extra labor to sand those rough scratches away with finer paper and seal the metal so the paint sticks perfectly."],
+    ["a91","Duplicate Factory E-Coat","This operation covers the labor and paint materials required to match the original factory color on the inside of the new panel. Replacement parts arrive from the factory coated in a generic black shipping primer. Because the vehicle's original inner panels (such as the engine bay or underside of the hood) are a different factory color, our painter must mix a custom matching color and spray the interior side of the panel. This replaces the black shipping layer and restores the vehicle's inside areas to their exact pre-accident color and appearance."],
+    ["a91.1","Remove Adhesives","This operation covers the manual labor and specialized chemical solvents required to strip away old, hardened factory glue, double-sided tape residue, and emblem adhesives from the vehicle's body panels. Standard washing or paint prep does not dissolve these heavy bonding agents. The technician must carefully apply chemical adhesive removers and manually scrape away the residue using non-marring tools. This ensures a perfectly clean, bare surface so that new replacement moldings, emblems, or paint coatings can bond securely without failing or peeling."],
+    ["a91.2","Set Back Wiring","This operation covers the manual labor required to carefully unclip, disconnect, and move (set back) factory electrical wiring harnesses away from areas where heavy repairs are happening. Modern vehicles run thick bundles of sensitive wiring directly behind exterior body panels and frame rails. To prevent these vital electrical lines from being melted by welding heat, punctured by structural pulling equipment, or severed by cutting tools, a technician must safely displace and secure them out of harm's way before any structural work begins, then route them back once repairs are complete."],
+    ["a91.3","Welder Set Up","This operation covers the mandatory safety setup and calibration required before performing structural welds on a vehicle. Modern vehicles are built using highly specialized, heat-sensitive metals like Ultra-High-Strength Steel (UHSS) or aluminum. To ensure a safe, factory-quality bond, the technician must configure the welding equipment's voltage, wire-feed speed, and shielding gas mix to match the exact thickness and metallurgical profile of the specific panel being replaced. This setup cycle must be completed before any joining of metal begins."],
+    ["a91.4","Remove Factory Seam Sealer from Adjacent Panels","This operation covers the manual labor required to scrape and grind away heavy factory rubber seam sealers from panels immediately next to the repair zone. When replacing or pulling a structural component, the extreme heat from welding or the physical stress of frame-pulling equipment will melt, burn, or crack the rubber sealers on adjoining panels. To prevent toxic smoke, vehicle fires, and hidden rust pockets from forming underneath burnt rubber, the technician must entirely strip these nearby coatings down to bare metal before work begins, then prep those surfaces for new sealer application later."],
+    ["a91.5","Old Urethane Removal","This operation covers the precise labor required to remove the old, hardened windshield glue (urethane) left on the vehicle's frame after a glass panel is removed. To ensure a safe bond, federal motor vehicle safety standards and factory guidelines state that new glass cannot be glued directly on top of a thick, old adhesive bed. The technician must carefully shave the old urethane layer down to a uniform thickness of roughly 1mm to 2mm without scratching the underlying paint or metal, creating a stable, structurally compliant foundation for the new glass installation."],
+    ["a91.6","OEM Part Label Removal","This operation covers the labor and chemical cleanup required to remove unsightly factory barcode stickers and paper tracking labels from new replacement parts. Vehicles do not leave the factory showroom floor with bright inventory stickers slapped all over their suspension, engine bay, or structural components. To correctly restore the vehicle to its clean, pre-accident condition, these non-original shipping labels must be stripped away and the leftover adhesive residue dissolved before the parts are installed."],
+    ["a91.7","Flash Time","This operation covers the mandatory, non-productive waiting time required between the application of each layer of paint and clear coat. Automotive paint relies on chemical solvents to carry the color smoothly onto the panel. Before the next layer can be sprayed, these solvents must naturally evaporate (or 'flash') out of the wet finish. If a painter sprays the next coat too quickly without waiting for this chemical cycle to complete, the trapped solvents will cause the paint to cloud, bubble, or peel, resulting in total finish failure."],
+    ["a91.8","Fine Line Masking","This operation covers the specialized labor required to seal off critical seams, door jambs, and panel gaps using ultra-thin, flexible 'fine line' tape. Standard masking tape is thick and wrinkles around curves, allowing paint to bleed underneath and leave sharp, jagged edges that look unprofessional and peel over time. The painter must manually apply this specialized, razor-sharp edge tape to create a perfectly clean, seamless barrier. This ensures the new paint stops precisely where the factory intended, leaving no visible paint lines or overspray gaps."],
+  ];
+
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const copyIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+  const checkIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+  const rows = notes.map(([code, title, text], i) => `
+    <details class="note-row">
+      <summary class="note-summary">
+        <span class="note-code">${esc(code)}</span>
+        <button type="button" class="copy-btn" data-idx="${i}" onclick="event.stopPropagation();copyNote(${i},this)">
+          ${copyIcon} Copy
+        </button>
+        <span class="note-title">${esc(title)}</span>
+        <span class="note-arrow">›</span>
+      </summary>
+      <div class="note-body">
+        <p class="note-text">${esc(text)}</p>
+      </div>
+    </details>`).join('');
+
+  const notesJSON = JSON.stringify(notes.map(n => n[2]));
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Line Notes Reference</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#f1f5f9;font-family:'Segoe UI',Arial,sans-serif;font-size:10pt;color:#1a1a2e;padding:24px 16px}
+.page{background:#fff;max-width:820px;margin:0 auto;padding:40px 52px 52px;box-shadow:0 2px 16px rgba(0,0,0,.12);border-radius:8px}
+.hdr{border-bottom:2.5px solid #2563eb;padding-bottom:14px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:flex-end}
+.hdr-title{font-size:18pt;font-weight:700;color:#1a1a2e}
+.hdr-sub{font-size:9pt;color:#6b7280;margin-top:3px}
+.hdr-count{font-size:9pt;color:#9ca3af}
+.note-row{border-bottom:.5px solid #e5e7eb}
+.note-row:last-child{border-bottom:none}
+.note-summary{display:flex;align-items:center;gap:12px;padding:11px 4px;cursor:pointer;list-style:none;user-select:none}
+.note-summary::-webkit-details-marker{display:none}
+.note-summary:hover{background:#f8fafc}
+.note-code{font-size:7.5pt;font-weight:700;color:#2563eb;font-family:'Courier New',monospace;letter-spacing:.03em;min-width:64px;flex-shrink:0}
+.note-title{font-size:10pt;font-weight:600;color:#111827;flex:1}
+.note-arrow{font-size:14pt;color:#9ca3af;transition:transform .15s;line-height:1}
+details[open] .note-arrow{transform:rotate(90deg)}
+.note-body{padding:0 4px 14px 76px}
+.note-text{font-size:9.5pt;color:#374151;line-height:1.65;margin-bottom:10px}
+.copy-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 13px;font-size:8.5pt;font-weight:600;color:#2563eb;background:#eff6ff;border:1px solid #bfdbfe;border-radius:5px;cursor:pointer;font-family:inherit;transition:background .15s,color .15s}
+.copy-btn:hover{background:#dbeafe}
+.copy-btn.copied{background:#f0fdf4;color:#16a34a;border-color:#86efac}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="hdr">
+    <div>
+      <div class="hdr-title">Line Notes Reference</div>
+      <div class="hdr-sub">Click any row to expand — Copy pastes the full note text</div>
+    </div>
+    <div class="hdr-count">${notes.length} notes</div>
+  </div>
+  ${rows}
+</div>
+<script>
+const texts = ${notesJSON};
+const copyIcon = '${copyIcon.replace(/'/g,"\\'")}';
+const checkIcon = '${checkIcon.replace(/'/g,"\\'")}';
+function copyNote(i, btn) {
+  const text = texts[i];
+  const done = () => {
+    btn.innerHTML = checkIcon + ' Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.innerHTML = copyIcon + ' Copy'; btn.classList.remove('copied'); }, 2000);
+  };
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try { document.execCommand('copy'); done(); } catch(e) {}
+    document.body.removeChild(ta);
+  };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(done).catch(fallback);
+  } else {
+    fallback();
+  }
+}
+<\/script>
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: 'text/html' });
+  const url  = URL.createObjectURL(blob);
+  window.open(url, '_blank');
 }
 
 function resetApp() {
