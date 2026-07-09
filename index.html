@@ -378,7 +378,12 @@ details.inv-collapsible[open] > summary .inv-section-title::before { content: 'â
     <div class="checklist-group">
       <div class="checklist-group-title">Documents to Create</div>
       <div class="checklist-items">
-        <label class="checklist-item"><input type="checkbox"><span>a93.4 &ndash; Not Included Consumables / Dry Goods Invoice</span></label>
+        <div class="checklist-item full-width" style="align-items:center">
+          <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;user-select:none;">
+            <input type="checkbox"><span>a93.4 &ndash; Not Included Consumables / Dry Goods Invoice</span>
+          </label>
+          <a href="https://fit-portal.com/spa/scrubber/force_import_log" target="_blank" class="checklist-link-btn" onclick="event.stopPropagation()">FIT Portal</a>
+        </div>
         <div class="checklist-item full-width" style="align-items:center">
           <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;user-select:none;">
             <input type="checkbox"><span>a93.5 &ndash; De/Nib &amp; Polish</span>
