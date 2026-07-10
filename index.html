@@ -294,7 +294,10 @@ details.inv-collapsible[open] > summary .inv-section-title::before { content: 'â
   <div id="resultsSection" class="hidden"></div>
 
   <div class="checklist-section">
-    <div class="checklist-section-title">Supplement Checklist</div>
+    <div class="checklist-section-title" style="display:flex;align-items:center;justify-content:space-between;">
+      <span>Supplement Checklist</span>
+      <button class="checklist-link-btn" style="cursor:pointer;font-family:inherit;" onclick="resetChecklist()">Reset Checkboxes</button>
+    </div>
 
     <div class="checklist-group">
       <div class="checklist-group-title">Required Research</div>
@@ -382,7 +385,7 @@ details.inv-collapsible[open] > summary .inv-section-title::before { content: 'â
           <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;user-select:none;">
             <input type="checkbox"><span>a93.4 &ndash; Not Included Consumables / Dry Goods Invoice</span>
           </label>
-          <a href="https://fit-portal.com/spa/scrubber/force_import_log" target="_blank" class="checklist-link-btn" onclick="event.stopPropagation()">FIT Portal</a>
+          <a href="https://fit-portal.com/spa/login" target="_blank" class="checklist-link-btn" onclick="event.stopPropagation()">FIT Portal</a>
         </div>
         <div class="checklist-item full-width" style="align-items:center">
           <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;user-select:none;">
@@ -1793,6 +1796,10 @@ function resetApp() {
   _roOutputFolder = null;
   const invEl = document.getElementById('invoiceResults');
   if (invEl) invEl.innerHTML = '';
+  resetChecklist();
+}
+
+function resetChecklist() {
   document.querySelectorAll('.checklist-section input[type="checkbox"]').forEach(cb => {
     cb.checked = false;
     cb.closest('.checklist-item')?.classList.remove('checked-item');
