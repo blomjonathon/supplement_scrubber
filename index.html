@@ -1864,6 +1864,7 @@ async function triggerDenibCalc() {
       if (/miscellaneous/i.test(currentSection))          continue;
       if (!item.paint || item.paint < 0.5)                 continue;
       if (/bumper/i.test(item.description || ''))         continue;
+      if (/mold(?:ing)?|mldg/i.test(item.description || '')) continue;
       if (/^add\s+for\b/i.test(item.description || ''))  continue;
       if (/^overlap\b/i.test(item.description || ''))     continue;
       if (/clear\s*coat/i.test(item.description || ''))  continue;
@@ -1872,6 +1873,8 @@ async function triggerDenibCalc() {
       if (/let[\s\-]*down[\s\-]*panel|letdown[\s\-]*panel/i.test(item.description || '')) continue;
       if (/\bedge\b/i.test(item.description || '')) continue;
       if (!_isBuffablePanel(item.description) && !_isBuffablePanel(currentSection)) continue;
+      const isDoorItem = /\bdoor\b/i.test(currentSection) || /\bdoor\b/i.test(item.description || '');
+      if (isDoorItem && !/\bdoor\s*(shell|outer\s*panel)\b/i.test(item.description || '')) continue;
 
       const label   = _panelLabel(item.description, currentSection, item.operation);
       const buffHrs = Math.round(item.paint * 0.30 * 10) / 10;
