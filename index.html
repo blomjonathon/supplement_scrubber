@@ -76,7 +76,7 @@ body {
 .card-label {
   font-size: 8pt; font-weight: 700; color: #2563eb;
   text-transform: uppercase; letter-spacing: 0.07em;
-  font-family: 'Courier New', monospace; margin-bottom: 10px;
+  font-family: inherit; margin-bottom: 10px;
 }
 .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 16px; }
 .info-item label { font-size: 8pt; color: #6b7280; display: block; }
@@ -98,38 +98,35 @@ body {
 .yes .cond-dot { background: #16a34a; }
 .no  .cond-dot { background: #d1d5db; }
 
-/* Summary bar */
-.summary-bar {
-  display: flex; align-items: center; justify-content: space-between;
-  background: #0f172a; color: white; border-radius: 8px;
-  padding: 16px 24px; margin-bottom: 22px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
-}
-.sum-counts { display: flex; gap: 28px; }
-.sum-count { text-align: center; }
-.sum-num { font-size: 20pt; font-weight: 700; display: block; line-height: 1; }
-.sum-lbl { font-size: 8pt; color: #64748b; margin-top: 2px; white-space: nowrap; }
-.sum-count.c .sum-num { color: #f87171; }
-.sum-count.w .sum-num { color: #fbbf24; }
-.sum-count.b .sum-num { color: #c4b5fd; }
-
 /* Actions */
 .actions { display: flex; gap: 10px; margin-bottom: 28px; flex-wrap: wrap; }
 .btn {
-  padding: 9px 18px; font-size: 9.5pt; font-weight: 600;
-  border-radius: 6px; cursor: pointer; border: none;
-  font-family: inherit; transition: background 0.15s;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; font-size: 9pt; font-weight: 600; letter-spacing: 0.01em;
+  border-radius: 8px; cursor: pointer; border: 1px solid transparent;
+  font-family: inherit; white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, color 0.15s;
 }
-.btn-primary { background: #2563eb; color: white; }
-.btn-primary:hover { background: #1d4ed8; }
-.btn-secondary { background: #f1f5f9; color: #374151; border: 1px solid #cbd5e1; }
-.btn-secondary:hover { background: #e2e8f0; }
+.btn:active { transform: translateY(1px); }
+.btn-primary {
+  background: #2563eb; color: white;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.btn-primary:hover { background: #1d4ed8; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28); }
+.btn-secondary {
+  background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.08);
+}
+.btn-secondary:hover { background: #dbeafe; border-color: #93c5fd; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.15); }
+.btn:focus-visible, .checklist-link-btn:focus-visible, .copy-btn:focus-visible, .denib-primary-btn:focus-visible {
+  outline: 2px solid #93c5fd; outline-offset: 2px;
+}
 
 /* Group header */
 .group-header {
   font-size: 8pt; font-weight: 700; color: #2563eb;
   text-transform: uppercase; letter-spacing: 0.07em;
-  font-family: 'Courier New', monospace;
+  font-family: inherit;
   margin: 18px 0 0;
   padding: 6px 12px;
   background: rgba(37,99,235,0.08);
@@ -159,17 +156,18 @@ body {
 .note-text  { font-size: 9.5pt; color: #4b5563; line-height: 1.65; }
 
 .copy-btn {
-  flex-shrink: 0; margin-top: 2px; padding: 5px 13px;
-  font-size: 8.5pt; font-weight: 600; color: #2563eb;
+  flex-shrink: 0; margin-top: 2px; padding: 8px 22px; min-width: 96px; justify-content: center;
+  font-size: 9pt; font-weight: 600; color: #1d4ed8;
   background: #eff6ff; border: 1px solid #bfdbfe;
-  border-radius: 5px; cursor: pointer; white-space: nowrap;
-  transition: background 0.15s, color 0.15s;
+  border-radius: 999px; cursor: pointer; white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
   display: flex; align-items: center; gap: 5px;
   font-family: inherit;
 }
-.copy-btn:hover { background: #dbeafe; }
+.copy-btn:hover { background: #dbeafe; border-color: #93c5fd; }
 .copy-btn.copied { background: #f0fdf4; color: #16a34a; border-color: #86efac; }
-.copy-btn svg { width: 12px; height: 12px; flex-shrink: 0; }
+.copy-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
 
 /* Collapsible note text */
 .note-details > summary { cursor: pointer; list-style: none; }
@@ -213,7 +211,7 @@ body {
 .checklist-group-title {
   font-size: 8pt; font-weight: 700; color: #1e40af;
   text-transform: uppercase; letter-spacing: 0.07em;
-  font-family: 'Courier New', monospace;
+  font-family: inherit;
   background: #f1f5ff; padding: 8px 14px;
   border-bottom: 1px solid #dbeafe;
 }
@@ -224,12 +222,16 @@ body {
 .checklist-item input[type="checkbox"]:checked::after { content: '✓'; color: white; font-size: 9px; font-weight: 700; display: block; text-align: center; line-height: 14px; }
 .checklist-item.checked-item span { color: #9ca3af; text-decoration: line-through; }
 .checklist-link-btn {
-  padding: 3px 9px; font-size: 8pt; font-weight: 600;
-  color: #2563eb; background: #eff6ff; border: 1px solid #bfdbfe;
-  border-radius: 4px; text-decoration: none; white-space: nowrap;
+  display: inline-flex; align-items: center;
+  padding: 4px 11px; font-size: 8pt; font-weight: 600; font-family: inherit;
+  color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe;
+  border-radius: 999px; text-decoration: none; white-space: nowrap; cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
   flex-shrink: 0; align-self: center;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
-.checklist-link-btn:hover { background: #dbeafe; }
+.checklist-link-btn:hover { background: #dbeafe; border-color: #93c5fd; }
+.checklist-link-btn:disabled { color: #94a3b8; background: #f8fafc; border-color: #e2e8f0; cursor: default; }
 
 /* De/Nib panel picker */
 .denib-overlay {
@@ -248,7 +250,7 @@ body {
 .denib-modal-body { overflow-y: auto; padding: 6px 20px 10px; }
 .denib-sec-title {
   font-size: 8pt; font-weight: 700; color: #1e40af; text-transform: uppercase;
-  letter-spacing: 0.07em; font-family: 'Courier New', monospace; margin: 12px 0 4px;
+  letter-spacing: 0.07em; font-family: inherit; margin: 12px 0 4px;
 }
 .denib-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; font-size: 9.5pt; color: #374151; cursor: pointer; user-select: none; }
 .denib-row .denib-row-label { flex: 1; }
@@ -260,10 +262,13 @@ body {
 .denib-modal-total { font-size: 9pt; color: #374151; }
 .denib-modal-actions { display: flex; gap: 8px; }
 .denib-primary-btn {
-  padding: 6px 14px; font-size: 9pt; font-weight: 600; font-family: inherit; cursor: pointer;
-  color: white; background: #2563eb; border: 1px solid #2563eb; border-radius: 4px;
+  padding: 6px 16px; font-size: 8.5pt; font-weight: 600; font-family: inherit; cursor: pointer;
+  color: white; background: #2563eb; border: 1px solid #2563eb; border-radius: 999px;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.3);
+  transition: background 0.15s, box-shadow 0.15s;
 }
-.denib-primary-btn:disabled { background: #94a3b8; border-color: #94a3b8; cursor: default; }
+.denib-primary-btn:hover:not(:disabled) { background: #1d4ed8; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25); }
+.denib-primary-btn:disabled { background: #cbd5e1; border-color: #cbd5e1; box-shadow: none; cursor: default; }
 
 /* Invoice Review */
 .inv-results { margin-top: 32px; border-top: 2px solid #e2e8f0; padding-top: 24px; }
@@ -314,8 +319,7 @@ details.inv-collapsible[open] > summary .inv-section-title::before { content: '�
       <div class="doc-sub">CCC One — Missing Operations Checker</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;">
-      <button onclick="openLineNotes()" style="padding:6px 14px;font-size:8.5pt;font-weight:600;color:#2563eb;background:#eff6ff;border:1px solid #bfdbfe;border-radius:5px;cursor:pointer;font-family:inherit;">&#128203; All Line Notes</button>
-      <div style="font-size:9pt;color:#9ca3af;">New Central Auto</div>
+      <button class="btn btn-secondary" onclick="openLineNotes()">All Line Notes</button>
     </div>
   </div>
 
@@ -335,28 +339,12 @@ details.inv-collapsible[open] > summary .inv-section-title::before { content: '�
   <div class="checklist-section">
     <div class="checklist-section-title" style="display:flex;align-items:center;justify-content:space-between;">
       <span>Supplement Checklist</span>
-      <button class="checklist-link-btn" style="cursor:pointer;font-family:inherit;" onclick="resetChecklist()">Reset Checkboxes</button>
+      <button class="checklist-link-btn" onclick="resetChecklist()">Reset Checkboxes</button>
     </div>
 
     <div class="checklist-group">
-      <div class="checklist-group-title">Required Research</div>
       <div class="checklist-items">
         <label class="checklist-item"><input type="checkbox"><span>OEM Repair Procedures (Alldata)</span></label>
-        <div class="checklist-item full-width" style="justify-content:space-between;align-items:center;">
-          <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;user-select:none;">
-            <input type="checkbox"><span>Necessary Calibrations (REV ADAS)</span>
-          </label>
-          <div style="display:flex;gap:6px;flex-shrink:0;">
-            <a href="https://cloud-us.autel.com/fileManagement/reportManagement" target="_blank" class="checklist-link-btn" onclick="event.stopPropagation()">Autel Reports</a>
-            <a href="https://app.revvadas.com/reports/new" target="_blank" class="checklist-link-btn" onclick="event.stopPropagation()">REV ADAS</a>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="checklist-group">
-      <div class="checklist-group-title">Things to Check / Confirm</div>
-      <div class="checklist-items">
         <label class="checklist-item"><input type="checkbox"><span>Rates / Sales Tax</span></label>
         <label class="checklist-item"><input type="checkbox"><span>Apply Rates Retroactively</span></label>
         <label class="checklist-item"><input type="checkbox"><span>Refinish Adjustments</span></label>
@@ -370,12 +358,6 @@ details.inv-collapsible[open] > summary .inv-section-title::before { content: '�
         <label class="checklist-item"><input type="checkbox"><span>R&amp;I Rear Bumper Park Sensors</span></label>
         <label class="checklist-item"><input type="checkbox"><span>R&amp;I Air Bag Sensors in Replacement Doors</span></label>
         <label class="checklist-item"><input type="checkbox"><span>R&amp;I/Drop Body Weatherstrips for Headliner Removal</span></label>
-      </div>
-    </div>
-
-    <div class="checklist-group">
-      <div class="checklist-group-title">Additional Line Items</div>
-      <div class="checklist-items">
         <label class="checklist-item"><input type="checkbox"><span>a91.9 &ndash; 3 Stage</span></label>
         <label class="checklist-item"><input type="checkbox"><span>a92 &ndash; Tow Bill</span></label>
         <label class="checklist-item full-width"><input type="checkbox"><span>a2&ndash;a4.01 &ndash; Standard Procedures (Flex Additive, Corrosion Protection, Car Cover, Hazardous Waste, Clean &amp; Re-tape)</span></label>
@@ -385,17 +367,11 @@ details.inv-collapsible[open] > summary .inv-section-title::before { content: '�
         <label class="checklist-item"><input type="checkbox"><span>a93.1 &ndash; Test Fit/Align Recycled &amp; Non-OEM Parts</span></label>
         <label class="checklist-item"><input type="checkbox"><span>a93.2 &ndash; Pull for Access</span></label>
         <label class="checklist-item"><input type="checkbox"><span>a93.3 &ndash; Transfer Wiring</span></label>
-      </div>
-    </div>
-
-    <div class="checklist-group">
-      <div class="checklist-group-title">Review</div>
-      <div class="checklist-items">
-        <div class="checklist-item full-width" style="align-items:center;grid-column:1/-1;">
+        <div class="checklist-item full-width" style="align-items:center;">
           <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;user-select:none;">
             <input type="checkbox"><span>Review Part Invoices (Confirm all Parts are Accounted for)</span>
           </label>
-          <button class="checklist-link-btn" style="cursor:pointer;display:none;" onclick="triggerInvoiceReview(); event.stopPropagation()">Upload Invoices</button>
+          <button class="checklist-link-btn" style="display:none;" onclick="triggerInvoiceReview(); event.stopPropagation()">Upload Invoices</button>
         </div>
         <input type="file" id="invoiceInput" multiple accept=".pdf" style="display:none">
         <label class="checklist-item"><input type="checkbox"><span>Review Technician Repair Photos</span></label>
@@ -403,40 +379,30 @@ details.inv-collapsible[open] > summary .inv-section-title::before { content: '�
         <label class="checklist-item"><input type="checkbox"><span>Review Body Exclusions</span></label>
         <label class="checklist-item"><input type="checkbox"><span>Review Applicable P-Pages</span></label>
         <label class="checklist-item"><input type="checkbox"><span>Remove Material Cap (a92.8)</span></label>
-      </div>
-    </div>
-
-    <div class="checklist-group">
-      <div class="checklist-group-title">Excluded Common Body Operations</div>
-      <div class="checklist-items">
         <label class="checklist-item"><input type="checkbox"><span>Sail Rail Refinish / Blend</span></label>
         <label class="checklist-item"><input type="checkbox"><span>Rocker Panel Refinish / Blend</span></label>
         <label class="checklist-item"><input type="checkbox"><span>Tow Hook Cover Refinish / Blend</span></label>
-        <label class="checklist-item"><input type="checkbox"><span>Prep Raw Plastic</span></label>
         <label class="checklist-item"><input type="checkbox"><span>Chip Guard / Rock Guard</span></label>
-      </div>
-    </div>
-
-    <div class="checklist-group">
-      <div class="checklist-group-title">Documents to Create</div>
-      <div class="checklist-items">
-        <div class="checklist-item full-width" style="align-items:center">
-          <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;user-select:none;">
-            <input type="checkbox"><span>a93.4 &ndash; Not Included Consumables / Dry Goods Invoice</span>
-          </label>
-          <a href="https://fit-portal.com/spa/login" target="_blank" class="checklist-link-btn" onclick="event.stopPropagation()">FIT Portal</a>
-        </div>
         <div class="checklist-item full-width" style="align-items:center">
           <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;user-select:none;">
             <input type="checkbox"><span>a93.5 &ndash; De/Nib &amp; Polish</span>
           </label>
-          <button id="denibCalcBtn" onclick="triggerDenibCalc()" class="checklist-link-btn" style="cursor:pointer;font-family:inherit;">Calculate De/Nib &amp; Polish</button>
+          <button id="denibCalcBtn" onclick="triggerDenibCalc()" class="checklist-link-btn">Calculate De/Nib &amp; Polish</button>
         </div>
         <label class="checklist-item"><input type="checkbox"><span>Clear Bra Invoice</span></label>
         <label class="checklist-item"><input type="checkbox"><span>Scan Invoice (REV ADAS) &ndash; Add Test Drive</span></label>
         <label class="checklist-item"><input type="checkbox"><span>a92.6 &ndash; Glass Sublet Invoice</span></label>
         <label class="checklist-item"><input type="checkbox"><span>a92.7 &ndash; Glass Kit</span></label>
         <label class="checklist-item"><input type="checkbox"><span>R1234YF A/C Evacuate &amp; Recharge Invoice</span></label>
+        <div class="checklist-item full-width" style="align-items:center;">
+          <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;user-select:none;">
+            <input type="checkbox"><span>Necessary Calibrations</span>
+          </label>
+          <div style="display:flex;gap:6px;flex-shrink:0;">
+            <a href="https://cloud-us.autel.com/fileManagement/reportManagement" target="_blank" class="checklist-link-btn" onclick="event.stopPropagation()">Autel Reports</a>
+            <a href="https://app.revvadas.com/reports/new" target="_blank" class="checklist-link-btn" onclick="event.stopPropagation()">REV ADAS</a>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -448,15 +414,15 @@ details.inv-collapsible[open] > summary .inv-section-title::before { content: '�
       <div class="denib-modal-title" id="denibModalTitle">Select Panels for De/Nib &amp; Polish</div>
       <div class="denib-modal-sub">All painted panels on the estimate are listed. Typical buffable panels are pre-selected.</div>
       <div class="denib-modal-tools">
-        <button class="checklist-link-btn" style="cursor:pointer;font-family:inherit;" onclick="_setAllDenib(true)">Select All</button>
-        <button class="checklist-link-btn" style="cursor:pointer;font-family:inherit;" onclick="_setAllDenib(false)">Select None</button>
+        <button class="checklist-link-btn" onclick="_setAllDenib(true)">Select All</button>
+        <button class="checklist-link-btn" onclick="_setAllDenib(false)">Select None</button>
       </div>
     </div>
     <div class="denib-modal-body" id="denibPanelList"></div>
     <div class="denib-modal-foot">
       <div class="denib-modal-total" id="denibSelTotal"></div>
       <div class="denib-modal-actions">
-        <button class="checklist-link-btn" style="cursor:pointer;font-family:inherit;" onclick="closeDenibPicker()">Cancel</button>
+        <button class="checklist-link-btn" onclick="closeDenibPicker()">Cancel</button>
         <button class="denib-primary-btn" id="denibGenerateBtn" onclick="generateDenibFromSelection()">Generate PDF</button>
       </div>
     </div>
@@ -531,6 +497,11 @@ const NOTES = {
     code: 'a91.1', sev: 'critical',
     title: 'Remove Adhesives',
     text: "This operation covers the manual labor and specialized chemical solvents required to strip away old, hardened factory glue, double-sided tape residue, and emblem adhesives from the vehicle's body panels. Standard washing or paint prep does not dissolve these heavy bonding agents. The technician must carefully apply chemical adhesive removers and manually scrape away the residue using non-marring tools. This ensures a perfectly clean, bare surface so that new replacement moldings, emblems, or paint coatings can bond securely without failing or peeling."
+  },
+  'Prep Raw Plastic': {
+    code: '', sev: 'critical',
+    title: 'Prep Raw Plastic',
+    text: "This operation covers the additional preparation required to make a new, unprimed plastic bumper cover ready for paint. Replacement bumper covers arrive as raw plastic coated in mold-release agents left over from the factory molding process. Paint will not bond to this surface as delivered. The technician must thoroughly clean the cover with plastic-specific cleaners, scuff the entire surface, and apply adhesion promoter so the primer and paint layers bond permanently. Skipping this step leads to peeling, flaking, and paint failure on the new bumper."
   },
   'Old Urethane Removal': {
     code: 'a91.5', sev: 'critical',
@@ -786,7 +757,11 @@ function detect(text, lines = []) {
     ? lines.some(l => /^(?:repair|rpr)$/i.test(l.op) && l.paintHrs > 0)
     : /\bRpr\b/.test(text) && paintTime;
 
-  return { doorRepl, paintTime, blend, weldedPanel, emblem, glass, sublet, frameTime, frontDamage, lkq, repairOnPanel };
+  // Bumper cover replacement (front or rear). The op must sit directly before the
+  // bumper description so lines like "Remove/Replace Deduct for Rear Bumper R&I" don't match.
+  const bumperRepl = /\b(?:Repl|R&R|Remove\/Replace)\s+(?:(?:LT|RT|Front|Frt|Rear|Rr)\s+)*(?:bumper(?:\s+(?:cover|fascia|assy|assembly))?|fascia)\b/i.test(text);
+
+  return { doorRepl, bumperRepl, paintTime, blend, weldedPanel, emblem, glass, sublet, frameTime, frontDamage, lkq, repairOnPanel };
 }
 
 // ── Rules engine ─────────────────────────────────────────────────────────────
@@ -800,6 +775,11 @@ function conditionalMissing(text, cond) {
       missing.push({ trigger: 'Door Replacement', item: 'Mask Jambs' });
     if (!p(['air bag sensor', 'airbag sensor', 'r&i side impact', 'side impact sensor']))
       missing.push({ trigger: 'Door Replacement', item: 'R&I Air Bag Sensors in Door' });
+  }
+
+  if (cond.bumperRepl) {
+    if (!p(['raw plastic', 'prep raw', 'prep plastic', 'unprimed bumper', 'prep unprimed']))
+      missing.push({ trigger: 'Bumper Replacement', item: 'Prep Raw Plastic' });
   }
 
   if (cond.repairOnPanel) {
@@ -899,6 +879,9 @@ function getPresentPPageItems(text, cond) {
   if (cond.doorRepl) {
     if (p(['mask jamb'])) present.add('Mask Jambs');
     if (p(['air bag sensor', 'airbag sensor', 'r&i side impact', 'side impact sensor'])) present.add('R&I Air Bag Sensors in Door');
+  }
+  if (cond.bumperRepl) {
+    if (p(['raw plastic', 'prep raw', 'prep plastic', 'unprimed bumper', 'prep unprimed'])) present.add('Prep Raw Plastic');
   }
   if (cond.repairOnPanel) {
     if (hasOnSameLine(text, ['feather', 'prime', 'block']) || p(['f,p&b', 'f/p/b'])) present.add('Feather, Prime & Block');
@@ -1048,6 +1031,7 @@ function render(text, lines = []) {
   // Conditions grid
   const condLabels = [
     { key: 'doorRepl',    label: 'Door Replacement' },
+    { key: 'bumperRepl',  label: 'Bumper Replacement' },
     { key: 'paintTime',   label: 'Paint Time' },
     { key: 'blend',       label: 'Blend Operations' },
     { key: 'weldedPanel', label: 'Welded Panel' },
@@ -1067,18 +1051,6 @@ function render(text, lines = []) {
         <div class="cond-dot"></div><span>${label}</span>
       </div>`).join('')}
     </div>`;
-
-  // Summary bar
-  h += `<div class="summary-bar">
-    <div style="font-size:11pt;font-weight:700;">
-      Audit Summary — ${total} item${total !== 1 ? 's' : ''} to review
-    </div>
-    <div class="sum-counts">
-      <div class="sum-count c"><span class="sum-num">${condCount}</span><div class="sum-lbl">Conditionally Missing</div></div>
-      <div class="sum-count w"><span class="sum-num">${alwCount}</span><div class="sum-lbl">Always-Check Not Found</div></div>
-      <div class="sum-count b"><span class="sum-num">${blCount}</span><div class="sum-lbl">Blend Hour Issues</div></div>
-    </div>
-  </div>`;
 
   // Actions
   h += `<div class="actions">
@@ -1795,8 +1767,8 @@ body{background:#f1f5f9;font-family:"Google Sans","Noto Sans",sans-serif;font-op
 details[open] .note-arrow{transform:rotate(90deg)}
 .note-body{padding:0 4px 14px 76px}
 .note-text{font-size:9.5pt;color:#374151;line-height:1.65;margin-bottom:10px}
-.copy-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 13px;font-size:8.5pt;font-weight:600;color:#2563eb;background:#eff6ff;border:1px solid #bfdbfe;border-radius:5px;cursor:pointer;font-family:inherit;transition:background .15s,color .15s}
-.copy-btn:hover{background:#dbeafe}
+.copy-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 22px;min-width:96px;font-size:9pt;font-weight:600;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;border-radius:999px;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(15,23,42,.05);transition:background .15s,color .15s,border-color .15s}
+.copy-btn:hover{background:#dbeafe;border-color:#93c5fd}
 .copy-btn.copied{background:#f0fdf4;color:#16a34a;border-color:#86efac}
 </style>
 </head>
