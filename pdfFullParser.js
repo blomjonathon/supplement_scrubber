@@ -137,7 +137,7 @@ function _parseLine(row, cols) {
   // ── Section header detection ──────────────────────────────────────────────
   // All-caps description, no operation, no numeric values
   const tailText = tail.map(i => i.s).join(' ');
-  if (!operation && !/\d/.test(tailText) && /^[A-Z0-9\s&\/\-\.]+$/.test(tailText.trim())) {
+  if (!operation && !/\d/.test(tailText) && /^[A-Z0-9\s&\/\-\.,]+$/.test(tailText.trim())) {
     return {
       line: lineNum, ver, operation: null,
       description: tailText.trim(),
